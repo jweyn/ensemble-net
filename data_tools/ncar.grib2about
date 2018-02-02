@@ -1,0 +1,727 @@
+GridDatasetCoverage ncar_3km_2015101500_mem1_f012.grb2#SRC
+ Global attributes:
+  Originating_or_generating_Center = "US National Weather Service, National Centres for Environmental Prediction (NCEP)"
+  Originating_or_generating_Subcenter = "0"
+  GRIB_table_version = "2,1"
+  Type_of_generating_process = "Forecast"
+  Analysis_or_forecast_generating_process_identifier_defined_by_originating_centre = "Ultra Violet Index Model"
+  file_format = "GRIB-2"
+  Conventions = "CF-1.6"
+  history = "Read using CDM IOSP GribCollection v3"
+  featureType = "GRID"
+ Date Range:2015-10-15T12:00:00Z - 2015-10-15T12:00:00Z
+ LatLon BoundingBox: ll: 21.8602N 129.4985W+ ur: 48.7571N 65.0101W
+ Projection BoundingBox:min: -2070.449 -770.754 size: 4740.000 2955.000
+
+ Coordinate Systems:
+   CoordSys ' reftime time height_above_ground_layer3 y x' type GRID has coordVars:reftime, time, height_above_ground_layer3, y, x,  (shape=[1,1,985,1580,]); has transforms:LambertConformal_985X1580-38p35N-97p52W,    CoordSys ' reftime time height_above_ground1 y x' type GRID has coordVars:reftime, time, height_above_ground1, y, x,  (shape=[1,1,985,1580,]); has transforms:LambertConformal_985X1580-38p35N-97p52W,    CoordSys ' reftime time height_above_ground_layer y x' type GRID has coordVars:reftime, time, height_above_ground_layer, y, x,  (shape=[1,2,985,1580,]); has transforms:LambertConformal_985X1580-38p35N-97p52W,    CoordSys ' reftime time y x' type GRID has coordVars:reftime, time, y, x,  (shape=[1,985,1580,]); has transforms:LambertConformal_985X1580-38p35N-97p52W,    CoordSys ' reftime time height_above_ground_layer1 y x' type GRID has coordVars:reftime, time, height_above_ground_layer1, y, x,  (shape=[1,2,985,1580,]); has transforms:LambertConformal_985X1580-38p35N-97p52W,    CoordSys ' reftime time pressure_difference_layer y x' type GRID has coordVars:reftime, time, pressure_difference_layer, y, x,  (shape=[1,3,985,1580,]); has transforms:LambertConformal_985X1580-38p35N-97p52W,    CoordSys ' reftime time1 height_above_ground y x' type GRID has coordVars:reftime, time1, height_above_ground, y, x,  (shape=[1,1,985,1580,]); has transforms:LambertConformal_985X1580-38p35N-97p52W,    CoordSys ' reftime time1 y x' type GRID has coordVars:reftime, time1, y, x,  (shape=[1,985,1580,]); has transforms:LambertConformal_985X1580-38p35N-97p52W,    CoordSys ' reftime time height_above_ground2 y x' type GRID has coordVars:reftime, time, height_above_ground2, y, x,  (shape=[1,2,985,1580,]); has transforms:LambertConformal_985X1580-38p35N-97p52W,    CoordSys ' reftime time pressure_difference y x' type GRID has coordVars:reftime, time, pressure_difference, y, x,  (shape=[1,1,985,1580,]); has transforms:LambertConformal_985X1580-38p35N-97p52W,    CoordSys ' reftime time isentrope y x' type GRID has coordVars:reftime, time, isentrope, y, x,  (shape=[1,1,985,1580,]); has transforms:LambertConformal_985X1580-38p35N-97p52W,    CoordSys ' reftime time isobaric_layer y x' type GRID has coordVars:reftime, time, isobaric_layer, y, x,  (shape=[1,1,985,1580,]); has transforms:LambertConformal_985X1580-38p35N-97p52W,    CoordSys ' reftime time pressure_difference_layer1 y x' type GRID has coordVars:reftime, time, pressure_difference_layer1, y, x,  (shape=[1,1,985,1580,]); has transforms:LambertConformal_985X1580-38p35N-97p52W,    CoordSys ' reftime time height_above_ground_layer2 y x' type GRID has coordVars:reftime, time, height_above_ground_layer2, y, x,  (shape=[1,1,985,1580,]); has transforms:LambertConformal_985X1580-38p35N-97p52W,    CoordSys ' reftime time height_above_ground y x' type GRID has coordVars:reftime, time, height_above_ground, y, x,  (shape=[1,1,985,1580,]); has transforms:LambertConformal_985X1580-38p35N-97p52W,  Coordinate Transforms:
+   CoordTransform 'LambertConformal_985X1580-38p35N-97p52W' isHoriz: true
+ projection: LambertConformal{earth_radius=6371.229, lat0=32.0, lon0=259.0, par1=32.0, par2=46.0, falseEasting=0.0, falseNorthing=0.0}
+       grid_mapping_name = "lambert_conformal_conic"
+       latitude_of_projection_origin = 32.0
+       longitude_of_central_meridian = 259.0
+       standard_parallel = 32.0, 46.0
+       earth_radius = 6371229.0
+
+ Coordinate Axes:
+CoordAxis 'y' (ucar.nc2.ft2.coverage.CoverageCoordAxis1D) independent
+  axisType=GeoY dataType=float units='km' desc='projection_y_coordinate'
+  units = "km"
+  npts: 985 [-769.254377,2182.745623] spacing=regularPoint resolution=3.000000
+ range=0:984 isSubset=false
+CoordAxis 'x' (ucar.nc2.ft2.coverage.CoverageCoordAxis1D) independent
+  axisType=GeoX dataType=float units='km' desc='projection_x_coordinate'
+  units = "km"
+  npts: 1580 [-2068.949389,2668.050611] spacing=regularPoint resolution=3.000000
+ range=0:1579 isSubset=false
+CoordAxis 'height_above_ground_layer' (ucar.nc2.ft2.coverage.CoverageCoordAxis1D) independent
+  axisType=Height dataType=double units='m' desc='null'
+  units = "m"
+  positive = "up"
+  npts: 2 [0.000000,6000.000000] spacing=discontiguousInterval resolution=3000.000000
+  discontiguous values (4)=(0.000000,1000.000000) (0.000000,6000.000000) 
+ range=0:1 isSubset=false
+CoordAxis 'pressure_difference' (ucar.nc2.ft2.coverage.CoverageCoordAxis1D) independent
+  axisType=Pressure dataType=double units='Pa' desc='null'
+  units = "Pa"
+  positive = "up"
+  npts: 1 [25500.000000,25500.000000] spacing=regularPoint
+ range=0:0 isSubset=false
+CoordAxis 'isentrope' (ucar.nc2.ft2.coverage.CoverageCoordAxis1D) independent
+  axisType=GeoZ dataType=double units='K' desc='null'
+  units = "K"
+  positive = "up"
+  npts: 1 [320.000000,320.000000] spacing=regularPoint
+ range=0:0 isSubset=false
+CoordAxis 'isobaric_layer' (ucar.nc2.ft2.coverage.CoverageCoordAxis1D) independent
+  axisType=Pressure dataType=double units='Pa' desc='null'
+  units = "Pa"
+  positive = "down"
+  npts: 1 [50000.000000,100000.000000] spacing=contiguousInterval resolution=50000.000000
+  contiguous values (2)=50000.000000,100000.000000,
+ range=0:0 isSubset=false
+CoordAxis 'height_above_ground2' (ucar.nc2.ft2.coverage.CoverageCoordAxis1D) independent
+  axisType=Height dataType=double units='m' desc='null'
+  units = "m"
+  positive = "up"
+  npts: 2 [1000.000000,4000.000000] spacing=regularPoint resolution=3000.000000
+ range=0:1 isSubset=false
+CoordAxis 'height_above_ground_layer3' (ucar.nc2.ft2.coverage.CoverageCoordAxis1D) independent
+  axisType=Height dataType=double units='m' desc='null'
+  units = "m"
+  positive = "up"
+  npts: 1 [2000.000000,5000.000000] spacing=contiguousInterval resolution=3000.000000
+  contiguous values (2)=2000.000000,5000.000000,
+ range=0:0 isSubset=false
+CoordAxis 'height_above_ground' (ucar.nc2.ft2.coverage.CoverageCoordAxis1D) independent
+  axisType=Height dataType=double units='m' desc='null'
+  units = "m"
+  positive = "up"
+  npts: 1 [10.000000,10.000000] spacing=regularPoint
+ range=0:0 isSubset=false
+CoordAxis 'height_above_ground_layer1' (ucar.nc2.ft2.coverage.CoverageCoordAxis1D) independent
+  axisType=Height dataType=double units='m' desc='null'
+  units = "m"
+  positive = "up"
+  npts: 2 [1000.000000,0.000000] spacing=discontiguousInterval resolution=2000.000000
+  discontiguous values (4)=(1000.000000,0.000000) (3000.000000,0.000000) 
+ range=0:1 isSubset=false
+CoordAxis 'reftime' (ucar.nc2.ft2.coverage.CoverageCoordAxis1D) scalar
+  axisType=RunTime dataType=double units='Hour since 2015-10-15T00:00:00Z' desc='GRIB reference time' refDate=2015-10-15T00:00:00Z
+  units = "Hour since 2015-10-15T00:00:00Z"
+  standard_name = "forecast_reference_time"
+  long_name = "GRIB reference time"
+  calendar = "proleptic_gregorian"
+  npts: 1 [0.000000,0.000000] spacing=regularPoint
+ range=0:0 isSubset=false
+CoordAxis 'time' (ucar.nc2.ft2.coverage.CoverageCoordAxis1D) independent
+  axisType=Time dataType=double units='Hour since 2015-10-15T00:00:00Z' desc='time' refDate=2015-10-15T00:00:00Z
+  units = "Hour"
+  standard_name = "time"
+  long_name = "time"
+  udunits = "Hour since 2015-10-15T00:00:00Z"
+  _CoordinateAxisType = "Time"
+  npts: 1 [12.000000,12.000000] spacing=regularPoint
+ range=0:0 isSubset=false
+CoordAxis 'pressure_difference_layer' (ucar.nc2.ft2.coverage.CoverageCoordAxis1D) independent
+  axisType=Pressure dataType=double units='Pa' desc='null'
+  units = "Pa"
+  positive = "up"
+  npts: 3 [9000.000000,0.000000] spacing=discontiguousInterval resolution=9000.000000
+  discontiguous values (6)=(9000.000000,0.000000) (18000.000000,0.000000) (25500.000000,0.000000) 
+ range=0:2 isSubset=false
+CoordAxis 'height_above_ground1' (ucar.nc2.ft2.coverage.CoverageCoordAxis1D) independent
+  axisType=Height dataType=double units='m' desc='null'
+  units = "m"
+  positive = "up"
+  npts: 1 [2.000000,2.000000] spacing=regularPoint
+ range=0:0 isSubset=false
+CoordAxis 'pressure_difference_layer1' (ucar.nc2.ft2.coverage.CoverageCoordAxis1D) independent
+  axisType=Pressure dataType=double units='Pa' desc='null'
+  units = "Pa"
+  positive = "up"
+  npts: 1 [40000.000000,100000.000000] spacing=contiguousInterval resolution=60000.000000
+  contiguous values (2)=40000.000000,100000.000000,
+ range=0:0 isSubset=false
+CoordAxis 'time1' (ucar.nc2.ft2.coverage.CoverageCoordAxis1D) independent
+  axisType=Time dataType=double units='Hour since 2015-10-15T00:00:00Z' desc='time' refDate=2015-10-15T00:00:00Z
+  units = "Hour"
+  standard_name = "time"
+  long_name = "time"
+  udunits = "Hour since 2015-10-15T00:00:00Z"
+  _CoordinateAxisType = "Time"
+  npts: 1 [11.000000,12.000000] spacing=contiguousInterval resolution=1.000000
+  contiguous values (2)=11.000000,12.000000,
+ range=0:0 isSubset=false
+CoordAxis 'height_above_ground_layer2' (ucar.nc2.ft2.coverage.CoverageCoordAxis1D) independent
+  axisType=Height dataType=double units='m' desc='null'
+  units = "m"
+  positive = "up"
+  npts: 1 [0.000000,6000.000000] spacing=contiguousInterval resolution=6000.000000
+  contiguous values (2)=0.000000,6000.000000,
+ range=0:0 isSubset=false
+
+ Grids:
+
+    float VAR0-17-2_FROM_7-0--1_entire_atmosphere( reftime time y x) desc='Unknown Parameter 0-17-2 @ Entire atmosphere' units=''
+      attributes:
+       long_name = "Unknown Parameter 0-17-2 @ Entire atmosphere"
+       units = ""
+       Grib_Variable_Id = "VAR_0-17-2_L10"
+       Grib2_Parameter = 0, 17, 2
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Electrodynamics"
+       Grib2_Level_Type = "Entire atmosphere"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float Categorical_rain_surface( reftime time y x) desc='Categorical rain @ Ground or water surface' units='(Code table 4.222)'
+      attributes:
+       long_name = "Categorical rain @ Ground or water surface"
+       units = "(Code table 4.222)"
+       Grib_Variable_Id = "VAR_0-1-33_L1"
+       Grib2_Parameter = 0, 1, 33
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Moisture"
+       Grib2_Parameter_Name = "Categorical rain"
+       Grib2_Level_Type = "Ground or water surface"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float Categorical_snow_surface( reftime time y x) desc='Categorical snow @ Ground or water surface' units='(Code table 4.222)'
+      attributes:
+       long_name = "Categorical snow @ Ground or water surface"
+       units = "(Code table 4.222)"
+       Grib_Variable_Id = "VAR_0-1-36_L1"
+       Grib2_Parameter = 0, 1, 36
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Moisture"
+       Grib2_Parameter_Name = "Categorical snow"
+       Grib2_Level_Type = "Ground or water surface"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float Precipitable_water_entire_atmosphere( reftime time y x) desc='Precipitable water @ Entire atmosphere' units='kg.m-2'
+      attributes:
+       long_name = "Precipitable water @ Entire atmosphere"
+       units = "kg.m-2"
+       Grib_Variable_Id = "VAR_0-1-3_L10"
+       Grib2_Parameter = 0, 1, 3
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Moisture"
+       Grib2_Parameter_Name = "Precipitable water"
+       Grib2_Level_Type = "Entire atmosphere"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float Categorical_freezing_rain_surface( reftime time y x) desc='Categorical freezing rain @ Ground or water surface' units='(Code table 4.222)'
+      attributes:
+       long_name = "Categorical freezing rain @ Ground or water surface"
+       units = "(Code table 4.222)"
+       Grib_Variable_Id = "VAR_0-1-34_L1"
+       Grib2_Parameter = 0, 1, 34
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Moisture"
+       Grib2_Parameter_Name = "Categorical freezing rain"
+       Grib2_Level_Type = "Ground or water surface"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float Large-scale_snow_surface_1_Hour_Accumulation( reftime time1 y x) desc='Large-scale snow (1_Hour Accumulation) @ Ground or water surface' units='kg.m-2'
+      attributes:
+       long_name = "Large-scale snow (1_Hour Accumulation) @ Ground or water surface"
+       units = "kg.m-2"
+       Grib_Variable_Id = "VAR_0-1-15_L1_I1_Hour_S1"
+       Grib2_Parameter = 0, 1, 15
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Moisture"
+       Grib2_Parameter_Name = "Large-scale snow"
+       Grib2_Level_Type = "Ground or water surface"
+       Grib2_Generating_Process_Type = "Forecast"
+       Grib2_Statistical_Process_Type = "Accumulation"
+
+    float Hourly_Maximum_of_Upward_Vertical_Velocity_in_the_lowest_400hPa_pressure_difference_layer( reftime time pressure_difference_layer1 y x) desc='Hourly Maximum of Upward Vertical Velocity in the lowest 400hPa @ Level at specified pressure difference from ground to level layer' units='m.s-1'
+      attributes:
+       long_name = "Hourly Maximum of Upward Vertical Velocity in the lowest 400hPa @ Level at specified pressure difference from ground to level layer"
+       units = "m.s-1"
+       Grib_Variable_Id = "VAR_0-2-220_L108_layer"
+       Grib2_Parameter = 0, 2, 220
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Momentum"
+       Grib2_Parameter_Name = "Hourly Maximum of Upward Vertical Velocity in the lowest 400hPa"
+       Grib2_Level_Type = "Level at specified pressure difference from ground to level"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float VAR0-1-243_FROM_7-0--1_surface( reftime time y x) desc='Unknown Parameter 0-1-243 @ Ground or water surface' units=''
+      attributes:
+       long_name = "Unknown Parameter 0-1-243 @ Ground or water surface"
+       units = ""
+       Grib_Variable_Id = "VAR_0-1-243_L1"
+       Grib2_Parameter = 0, 1, 243
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Moisture"
+       Grib2_Level_Type = "Ground or water surface"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float Simulated_Brightness_Temperature_for_GOES_11_Channel_4_atmosphere_top( reftime time y x) desc='Simulated Brightness Temperature for GOES 11, Channel 4 @ Nominal top of the atmosphere' units='K'
+      attributes:
+       long_name = "Simulated Brightness Temperature for GOES 11, Channel 4 @ Nominal top of the atmosphere"
+       units = "K"
+       Grib_Variable_Id = "VAR_3-192-8_L8"
+       Grib2_Parameter = 3, 192, 8
+       Grib2_Parameter_Discipline = "Space products"
+       Grib2_Parameter_Category = "Forecast Satellite Imagery"
+       Grib2_Parameter_Name = "Simulated Brightness Temperature for GOES 11, Channel 4"
+       Grib2_Level_Type = "Nominal top of the atmosphere"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float Temperature_height_above_ground( reftime time height_above_ground1 y x) desc='Temperature @ Specified height level above ground' units='K'
+      attributes:
+       long_name = "Temperature @ Specified height level above ground"
+       units = "K"
+       Grib_Variable_Id = "VAR_0-0-0_L103"
+       Grib2_Parameter = 0, 0, 0
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Temperature"
+       Grib2_Parameter_Name = "Temperature"
+       Grib2_Level_Type = "Specified height level above ground"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float Geopotential_height_tropopause( reftime time y x) desc='Geopotential height @ Tropopause' units='gpm'
+      attributes:
+       long_name = "Geopotential height @ Tropopause"
+       units = "gpm"
+       Grib_Variable_Id = "VAR_0-3-5_L7"
+       Grib2_Parameter = 0, 3, 5
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Mass"
+       Grib2_Parameter_Name = "Geopotential height"
+       Grib2_Level_Type = "Tropopause"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float VAR0-1-244_FROM_7-0--1_surface( reftime time y x) desc='Unknown Parameter 0-1-244 @ Ground or water surface' units=''
+      attributes:
+       long_name = "Unknown Parameter 0-1-244 @ Ground or water surface"
+       units = ""
+       Grib_Variable_Id = "VAR_0-1-244_L1"
+       Grib2_Parameter = 0, 1, 244
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Moisture"
+       Grib2_Level_Type = "Ground or water surface"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float Simulated_Brightness_Temperature_for_GOES_12_Channel_3_atmosphere_top( reftime time y x) desc='Simulated Brightness Temperature for GOES 12, Channel 3 @ Nominal top of the atmosphere' units='K'
+      attributes:
+       long_name = "Simulated Brightness Temperature for GOES 12, Channel 3 @ Nominal top of the atmosphere"
+       units = "K"
+       Grib_Variable_Id = "VAR_3-192-1_L8"
+       Grib2_Parameter = 3, 192, 1
+       Grib2_Parameter_Discipline = "Space products"
+       Grib2_Parameter_Category = "Forecast Satellite Imagery"
+       Grib2_Parameter_Name = "Simulated Brightness Temperature for GOES 12, Channel 3"
+       Grib2_Level_Type = "Nominal top of the atmosphere"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float Pressure_msl( reftime time y x) desc='Pressure @ Mean sea level' units='Pa'
+      attributes:
+       long_name = "Pressure @ Mean sea level"
+       units = "Pa"
+       Grib_Variable_Id = "VAR_0-3-0_L101"
+       Grib2_Parameter = 0, 3, 0
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Mass"
+       Grib2_Parameter_Name = "Pressure"
+       Grib2_Level_Type = "Mean sea level"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float v-component_storm_motion_height_above_ground_layer( reftime time height_above_ground_layer2 y x) desc='v-component storm motion @ Specified height level above ground layer' units='m/s'
+      attributes:
+       long_name = "v-component storm motion @ Specified height level above ground layer"
+       units = "m/s"
+       Grib_Variable_Id = "VAR_0-2-28_L103_layer"
+       Grib2_Parameter = 0, 2, 28
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Momentum"
+       Grib2_Parameter_Name = "v-component storm motion"
+       Grib2_Level_Type = "Specified height level above ground"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float Convective_available_potential_energy_pressure_difference_layer( reftime time pressure_difference_layer y x) desc='Convective available potential energy @ Level at specified pressure difference from ground to level layer' units='J/kg'
+      attributes:
+       long_name = "Convective available potential energy @ Level at specified pressure difference from ground to level layer"
+       units = "J/kg"
+       Grib_Variable_Id = "VAR_0-7-6_L108_layer"
+       Grib2_Parameter = 0, 7, 6
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Thermodynamic stability indices"
+       Grib2_Parameter_Name = "Convective available potential energy"
+       Grib2_Level_Type = "Level at specified pressure difference from ground to level"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float Simulated_Brightness_Temperature_for_GOES_11_Channel_3_atmosphere_top( reftime time y x) desc='Simulated Brightness Temperature for GOES 11, Channel 3 @ Nominal top of the atmosphere' units='K'
+      attributes:
+       long_name = "Simulated Brightness Temperature for GOES 11, Channel 3 @ Nominal top of the atmosphere"
+       units = "K"
+       Grib_Variable_Id = "VAR_3-192-7_L8"
+       Grib2_Parameter = 3, 192, 7
+       Grib2_Parameter_Discipline = "Space products"
+       Grib2_Parameter_Category = "Forecast Satellite Imagery"
+       Grib2_Parameter_Name = "Simulated Brightness Temperature for GOES 11, Channel 3"
+       Grib2_Level_Type = "Nominal top of the atmosphere"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float Temperature_cloud_tops( reftime time y x) desc='Temperature @ Level of cloud tops' units='K'
+      attributes:
+       long_name = "Temperature @ Level of cloud tops"
+       units = "K"
+       Grib_Variable_Id = "VAR_0-0-0_L3"
+       Grib2_Parameter = 0, 0, 0
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Temperature"
+       Grib2_Parameter_Name = "Temperature"
+       Grib2_Level_Type = "Level of cloud tops"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float VAR0-3-213_FROM_7-0--1_surface( reftime time y x) desc='Unknown Parameter 0-3-213 @ Ground or water surface' units=''
+      attributes:
+       long_name = "Unknown Parameter 0-3-213 @ Ground or water surface"
+       units = ""
+       Grib_Variable_Id = "VAR_0-3-213_L1"
+       Grib2_Parameter = 0, 3, 213
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Mass"
+       Grib2_Level_Type = "Ground or water surface"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float u-component_storm_motion_height_above_ground_layer( reftime time height_above_ground_layer2 y x) desc='u-component storm motion @ Specified height level above ground layer' units='m/s'
+      attributes:
+       long_name = "u-component storm motion @ Specified height level above ground layer"
+       units = "m/s"
+       Grib_Variable_Id = "VAR_0-2-27_L103_layer"
+       Grib2_Parameter = 0, 2, 27
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Momentum"
+       Grib2_Parameter_Name = "u-component storm motion"
+       Grib2_Level_Type = "Specified height level above ground"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float u-component_of_wind_height_above_ground( reftime time height_above_ground y x) desc='u-component of wind @ Specified height level above ground' units='m/s'
+      attributes:
+       long_name = "u-component of wind @ Specified height level above ground"
+       units = "m/s"
+       Grib_Variable_Id = "VAR_0-2-2_L103"
+       Grib2_Parameter = 0, 2, 2
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Momentum"
+       Grib2_Parameter_Name = "u-component of wind"
+       Grib2_Level_Type = "Specified height level above ground"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float Potential_vorticity_isentrope( reftime time isentrope y x) desc='Potential vorticity @ Isentropic (theta) level' units='K.m2.kg-1.s-1'
+      attributes:
+       long_name = "Potential vorticity @ Isentropic (theta) level"
+       units = "K.m2.kg-1.s-1"
+       Grib_Variable_Id = "VAR_0-2-14_L107"
+       Grib2_Parameter = 0, 2, 14
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Momentum"
+       Grib2_Parameter_Name = "Potential vorticity"
+       Grib2_Level_Type = "Isentropic (theta) level"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float Pressure_of_level_from_which_parcel_was_lifted_pressure_difference( reftime time pressure_difference y x) desc='Pressure of level from which parcel was lifted @ Level at specified pressure difference from ground to level' units='Pa'
+      attributes:
+       long_name = "Pressure of level from which parcel was lifted @ Level at specified pressure difference from ground to level"
+       units = "Pa"
+       Grib_Variable_Id = "VAR_0-3-200_L108"
+       Grib2_Parameter = 0, 3, 200
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Mass"
+       Grib2_Parameter_Name = "Pressure of level from which parcel was lifted"
+       Grib2_Level_Type = "Level at specified pressure difference from ground to level"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float Dewpoint_temperature_height_above_ground( reftime time height_above_ground1 y x) desc='Dewpoint temperature @ Specified height level above ground' units='K'
+      attributes:
+       long_name = "Dewpoint temperature @ Specified height level above ground"
+       units = "K"
+       Grib_Variable_Id = "VAR_0-0-6_L103"
+       Grib2_Parameter = 0, 0, 6
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Temperature"
+       Grib2_Parameter_Name = "Dewpoint temperature"
+       Grib2_Level_Type = "Specified height level above ground"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float Reflectivity_height_above_ground( reftime time height_above_ground2 y x) desc='Reflectivity @ Specified height level above ground' units='dB'
+      attributes:
+       long_name = "Reflectivity @ Specified height level above ground"
+       units = "dB"
+       Grib_Variable_Id = "VAR_0-16-4_L103"
+       Grib2_Parameter = 0, 16, 4
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Forecast Radar Imagery"
+       Grib2_Parameter_Name = "Reflectivity"
+       Grib2_Level_Type = "Specified height level above ground"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float Composite_reflectivity_entire_atmosphere( reftime time y x) desc='Composite reflectivity @ Entire atmosphere' units='dB'
+      attributes:
+       long_name = "Composite reflectivity @ Entire atmosphere"
+       units = "dB"
+       Grib_Variable_Id = "VAR_0-16-196_L10"
+       Grib2_Parameter = 0, 16, 196
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Forecast Radar Imagery"
+       Grib2_Parameter_Name = "Composite reflectivity"
+       Grib2_Level_Type = "Entire atmosphere"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float VAR0-17-3_FROM_7-0--1_entire_atmosphere( reftime time y x) desc='Unknown Parameter 0-17-3 @ Entire atmosphere' units=''
+      attributes:
+       long_name = "Unknown Parameter 0-17-3 @ Entire atmosphere"
+       units = ""
+       Grib_Variable_Id = "VAR_0-17-3_L10"
+       Grib2_Parameter = 0, 17, 3
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Electrodynamics"
+       Grib2_Level_Type = "Entire atmosphere"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float Categorical_ice_pellets_surface( reftime time y x) desc='Categorical ice pellets @ Ground or water surface' units='(Code table 4.222)'
+      attributes:
+       long_name = "Categorical ice pellets @ Ground or water surface"
+       units = "(Code table 4.222)"
+       Grib_Variable_Id = "VAR_0-1-35_L1"
+       Grib2_Parameter = 0, 1, 35
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Moisture"
+       Grib2_Parameter_Name = "Categorical ice pellets"
+       Grib2_Level_Type = "Ground or water surface"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float Geopotential_height_cloud_ceiling( reftime time y x) desc='Geopotential height @ Cloud ceiling' units='gpm'
+      attributes:
+       long_name = "Geopotential height @ Cloud ceiling"
+       units = "gpm"
+       Grib_Variable_Id = "VAR_0-3-5_L215"
+       Grib2_Parameter = 0, 3, 5
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Mass"
+       Grib2_Parameter_Name = "Geopotential height"
+       Grib2_Level_Type = "Cloud ceiling"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float Convective_inhibition_surface( reftime time y x) desc='Convective inhibition @ Ground or water surface' units='J/kg'
+      attributes:
+       long_name = "Convective inhibition @ Ground or water surface"
+       units = "J/kg"
+       Grib_Variable_Id = "VAR_0-7-7_L1"
+       Grib2_Parameter = 0, 7, 7
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Thermodynamic stability indices"
+       Grib2_Parameter_Name = "Convective inhibition"
+       Grib2_Level_Type = "Ground or water surface"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float VAR0-7-200_FROM_7-0--1_pressure_difference_layer( reftime time pressure_difference_layer y x) desc='Unknown Parameter 0-7-200 @ Level at specified pressure difference from ground to level layer' units=''
+      attributes:
+       long_name = "Unknown Parameter 0-7-200 @ Level at specified pressure difference from ground to level layer"
+       units = ""
+       Grib_Variable_Id = "VAR_0-7-200_L108_layer"
+       Grib2_Parameter = 0, 7, 200
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Thermodynamic stability indices"
+       Grib2_Level_Type = "Level at specified pressure difference from ground to level"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float Geopotential_height_cloud_base( reftime time y x) desc='Geopotential height @ Cloud base level' units='gpm'
+      attributes:
+       long_name = "Geopotential height @ Cloud base level"
+       units = "gpm"
+       Grib_Variable_Id = "VAR_0-3-5_L2"
+       Grib2_Parameter = 0, 3, 5
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Mass"
+       Grib2_Parameter_Name = "Geopotential height"
+       Grib2_Level_Type = "Cloud base level"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float Convective_inhibition_pressure_difference_layer( reftime time pressure_difference_layer y x) desc='Convective inhibition @ Level at specified pressure difference from ground to level layer' units='J/kg'
+      attributes:
+       long_name = "Convective inhibition @ Level at specified pressure difference from ground to level layer"
+       units = "J/kg"
+       Grib_Variable_Id = "VAR_0-7-7_L108_layer"
+       Grib2_Parameter = 0, 7, 7
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Thermodynamic stability indices"
+       Grib2_Parameter_Name = "Convective inhibition"
+       Grib2_Level_Type = "Level at specified pressure difference from ground to level"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float Total_precipitation_surface_1_Hour_Accumulation( reftime time1 y x) desc='Total precipitation (1_Hour Accumulation) @ Ground or water surface' units='kg.m-2'
+      attributes:
+       long_name = "Total precipitation (1_Hour Accumulation) @ Ground or water surface"
+       units = "kg.m-2"
+       Grib_Variable_Id = "VAR_0-1-8_L1_I1_Hour_S1"
+       Grib2_Parameter = 0, 1, 8
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Moisture"
+       Grib2_Parameter_Name = "Total precipitation"
+       Grib2_Level_Type = "Ground or water surface"
+       Grib2_Generating_Process_Type = "Forecast"
+       Grib2_Statistical_Process_Type = "Accumulation"
+
+    float VAR0-3-213_FROM_7-0--1_pressure_difference_layer( reftime time pressure_difference_layer y x) desc='Unknown Parameter 0-3-213 @ Level at specified pressure difference from ground to level layer' units=''
+      attributes:
+       long_name = "Unknown Parameter 0-3-213 @ Level at specified pressure difference from ground to level layer"
+       units = ""
+       Grib_Variable_Id = "VAR_0-3-213_L108_layer"
+       Grib2_Parameter = 0, 3, 213
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Mass"
+       Grib2_Level_Type = "Level at specified pressure difference from ground to level"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float VAR0-17-4_FROM_7-0--1_entire_atmosphere( reftime time y x) desc='Unknown Parameter 0-17-4 @ Entire atmosphere' units=''
+      attributes:
+       long_name = "Unknown Parameter 0-17-4 @ Entire atmosphere"
+       units = ""
+       Grib_Variable_Id = "VAR_0-17-4_L10"
+       Grib2_Parameter = 0, 17, 4
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Electrodynamics"
+       Grib2_Level_Type = "Entire atmosphere"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float Surface_lifted_index_isobaric_layer( reftime time isobaric_layer y x) desc='Surface lifted index @ Isobaric surface layer' units='K'
+      attributes:
+       long_name = "Surface lifted index @ Isobaric surface layer"
+       units = "K"
+       Grib_Variable_Id = "VAR_0-7-10_L100_layer"
+       Grib2_Parameter = 0, 7, 10
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Thermodynamic stability indices"
+       Grib2_Parameter_Name = "Surface lifted index"
+       Grib2_Level_Type = "Isobaric surface"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float Wind_speed_height_above_ground_1_Hour_Maximum( reftime time1 height_above_ground y x) desc='Wind speed (1_Hour Maximum) @ Specified height level above ground' units='m/s'
+      attributes:
+       long_name = "Wind speed (1_Hour Maximum) @ Specified height level above ground"
+       units = "m/s"
+       Grib_Variable_Id = "VAR_0-2-1_L103_I1_Hour_S2"
+       Grib2_Parameter = 0, 2, 1
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Momentum"
+       Grib2_Parameter_Name = "Wind speed"
+       Grib2_Level_Type = "Specified height level above ground"
+       Grib2_Generating_Process_Type = "Forecast"
+       Grib2_Statistical_Process_Type = "Maximum"
+
+    float VAR0-7-200_FROM_7-0--1_surface( reftime time y x) desc='Unknown Parameter 0-7-200 @ Ground or water surface' units=''
+      attributes:
+       long_name = "Unknown Parameter 0-7-200 @ Ground or water surface"
+       units = ""
+       Grib_Variable_Id = "VAR_0-7-200_L1"
+       Grib2_Parameter = 0, 7, 200
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Thermodynamic stability indices"
+       Grib2_Level_Type = "Ground or water surface"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float Vertical_v-component_shear_height_above_ground_layer( reftime time height_above_ground_layer y x) desc='Vertical v-component shear @ Specified height level above ground layer' units='1/s'
+      attributes:
+       long_name = "Vertical v-component shear @ Specified height level above ground layer"
+       units = "1/s"
+       Grib_Variable_Id = "VAR_0-2-16_L103_layer"
+       Grib2_Parameter = 0, 2, 16
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Momentum"
+       Grib2_Parameter_Name = "Vertical v-component shear"
+       Grib2_Level_Type = "Specified height level above ground"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float Simulated_Brightness_Temperature_for_GOES_12_Channel_4_atmosphere_top( reftime time y x) desc='Simulated Brightness Temperature for GOES 12, Channel 4 @ Nominal top of the atmosphere' units='K'
+      attributes:
+       long_name = "Simulated Brightness Temperature for GOES 12, Channel 4 @ Nominal top of the atmosphere"
+       units = "K"
+       Grib_Variable_Id = "VAR_3-192-2_L8"
+       Grib2_Parameter = 3, 192, 2
+       Grib2_Parameter_Discipline = "Space products"
+       Grib2_Parameter_Category = "Forecast Satellite Imagery"
+       Grib2_Parameter_Name = "Simulated Brightness Temperature for GOES 12, Channel 4"
+       Grib2_Level_Type = "Nominal top of the atmosphere"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float Updraft_Helicity_height_above_ground_layer( reftime time height_above_ground_layer3 y x) desc='Updraft Helicity @ Specified height level above ground layer' units='m2.s-2'
+      attributes:
+       long_name = "Updraft Helicity @ Specified height level above ground layer"
+       units = "m2.s-2"
+       Grib_Variable_Id = "VAR_0-7-197_L103_layer"
+       Grib2_Parameter = 0, 7, 197
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Thermodynamic stability indices"
+       Grib2_Parameter_Name = "Updraft Helicity"
+       Grib2_Level_Type = "Specified height level above ground"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float Convective_available_potential_energy_surface( reftime time y x) desc='Convective available potential energy @ Ground or water surface' units='J/kg'
+      attributes:
+       long_name = "Convective available potential energy @ Ground or water surface"
+       units = "J/kg"
+       Grib_Variable_Id = "VAR_0-7-6_L1"
+       Grib2_Parameter = 0, 7, 6
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Thermodynamic stability indices"
+       Grib2_Parameter_Name = "Convective available potential energy"
+       Grib2_Level_Type = "Ground or water surface"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float Geopotential_height_adiabatic_condensation_lifted( reftime time y x) desc='Geopotential height @ Level of adiabatic condensation lifted from the surface' units='gpm'
+      attributes:
+       long_name = "Geopotential height @ Level of adiabatic condensation lifted from the surface"
+       units = "gpm"
+       Grib_Variable_Id = "VAR_0-3-5_L5"
+       Grib2_Parameter = 0, 3, 5
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Mass"
+       Grib2_Parameter_Name = "Geopotential height"
+       Grib2_Level_Type = "Level of adiabatic condensation lifted from the surface"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float v-component_of_wind_height_above_ground( reftime time height_above_ground y x) desc='v-component of wind @ Specified height level above ground' units='m/s'
+      attributes:
+       long_name = "v-component of wind @ Specified height level above ground"
+       units = "m/s"
+       Grib_Variable_Id = "VAR_0-2-3_L103"
+       Grib2_Parameter = 0, 2, 3
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Momentum"
+       Grib2_Parameter_Name = "v-component of wind"
+       Grib2_Level_Type = "Specified height level above ground"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float Vertical_u-component_shear_height_above_ground_layer( reftime time height_above_ground_layer y x) desc='Vertical u-component shear @ Specified height level above ground layer' units='1/s'
+      attributes:
+       long_name = "Vertical u-component shear @ Specified height level above ground layer"
+       units = "1/s"
+       Grib_Variable_Id = "VAR_0-2-15_L103_layer"
+       Grib2_Parameter = 0, 2, 15
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Momentum"
+       Grib2_Parameter_Name = "Vertical u-component shear"
+       Grib2_Level_Type = "Specified height level above ground"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float Visibility_surface( reftime time y x) desc='Visibility @ Ground or water surface' units='m'
+      attributes:
+       long_name = "Visibility @ Ground or water surface"
+       units = "m"
+       Grib_Variable_Id = "VAR_0-19-0_L1"
+       Grib2_Parameter = 0, 19, 0
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Physical atmospheric Properties"
+       Grib2_Parameter_Name = "Visibility"
+       Grib2_Level_Type = "Ground or water surface"
+       Grib2_Generating_Process_Type = "Forecast"
+
+    float Water_equivalent_of_accumulated_snow_depth_surface_1_Hour_Accumulation( reftime time1 y x) desc='Water equivalent of accumulated snow depth (1_Hour Accumulation) @ Ground or water surface' units='kg.m-2'
+      attributes:
+       long_name = "Water equivalent of accumulated snow depth (1_Hour Accumulation) @ Ground or water surface"
+       units = "kg.m-2"
+       Grib_Variable_Id = "VAR_0-1-13_L1_I1_Hour_S1"
+       Grib2_Parameter = 0, 1, 13
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Moisture"
+       Grib2_Parameter_Name = "Water equivalent of accumulated snow depth"
+       Grib2_Level_Type = "Ground or water surface"
+       Grib2_Generating_Process_Type = "Forecast"
+       Grib2_Statistical_Process_Type = "Accumulation"
+
+    float Storm_relative_helicity_height_above_ground_layer( reftime time height_above_ground_layer1 y x) desc='Storm relative helicity @ Specified height level above ground layer' units='J/kg'
+      attributes:
+       long_name = "Storm relative helicity @ Specified height level above ground layer"
+       units = "J/kg"
+       Grib_Variable_Id = "VAR_0-7-8_L103_layer"
+       Grib2_Parameter = 0, 7, 8
+       Grib2_Parameter_Discipline = "Meteorological products"
+       Grib2_Parameter_Category = "Thermodynamic stability indices"
+       Grib2_Parameter_Name = "Storm relative helicity"
+       Grib2_Level_Type = "Specified height level above ground"
+       Grib2_Generating_Process_Type = "Forecast"

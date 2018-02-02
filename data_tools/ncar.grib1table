@@ -1,0 +1,49 @@
+1:Mean sea level pressure:Pa (instant):lambert:meanSea:level 0:fcst time 0 hrs:from 201505240000
+2:TOA incident solar radiation gradient:J m**-2 (instant):lambert:entireAtmosphere:level 0:fcst time 0 hrs:from 201505240000
+3:Soil wetness level 4 gradient:m (accum):lambert:isobaricLayer:level None:fcst time 0 hrs (accum):from 201505240000
+4:Surface net thermal radiation, clear sky gradient:J m**-2 (instant):lambert:heightAboveGround:level 1000:fcst time 0 hrs:from 201505240000
+5:Soil temperature level 4 gradient:K (accum):lambert:heightAboveGroundLayer:level None:fcst time 0 hrs (accum):from 201505240000
+6:2 metre temperature:K (instant):lambert:heightAboveGround:level 2:fcst time 0 hrs:from 201505240000
+7:2 metre dewpoint temperature:K (instant):lambert:heightAboveGround:level 2:fcst time 0 hrs:from 201505240000
+8:10 metre U wind component:m s**-1 (instant):lambert:heightAboveGround:level 10:fcst time 0 hrs:from 201505240000
+9:10 metre V wind component:m s**-1 (instant):lambert:heightAboveGround:level 10:fcst time 0 hrs:from 201505240000
+10:229:229 (accum):lambert:heightAboveGround:level 10:fcst time 0 hrs (accum):from 201505240000
+11:Total Precipitation:kg m**-2 (accum):lambert:surface:level 0:fcst time 0 hrs (accum):from 201505240000
+12:143:143 (instant):lambert:surface:level 0:fcst time 0 hrs:from 201505240000
+13:142:142 (instant):lambert:surface:level 0:fcst time 0 hrs:from 201505240000
+14:141:141 (instant):lambert:surface:level 0:fcst time 0 hrs:from 201505240000
+15:140:140 (instant):lambert:surface:level 0:fcst time 0 hrs:from 201505240000
+16:250:250 (instant):lambert:surface:level 0:fcst time 0 hrs:from 201505240000
+17:251:251 (instant):lambert:surface:level 0:fcst time 0 hrs:from 201505240000
+18:131:131 (instant):lambert:isobaricLayer:level None:fcst time 0 hrs:from 201505240000
+19:157:157 (instant):lambert:surface:level 0:fcst time 0 hrs:from 201505240000
+20:156:156 (instant):lambert:surface:level 0:fcst time 0 hrs:from 201505240000
+21:Temperature:K (instant):lambert:surface:level 0:fcst time 0 hrs:from 201505240000
+22:Surface pressure:Pa (instant):lambert:surface:level 0:fcst time 0 hrs:from 201505240000
+23:Precipitable water:kg m**-2 (instant):lambert:entireAtmosphere:level 0:fcst time 0 hrs:from 201505240000
+24:Temperature:K (instant):lambert:cloudTop:level 0:fcst time 0 hrs:from 201505240000
+25:190:190 (instant):lambert:heightAboveGroundLayer:level None:fcst time 0 hrs:from 201505240000
+26:190:190 (instant):lambert:heightAboveGroundLayer:level None:fcst time 0 hrs:from 201505240000
+27:196:196 (instant):lambert:heightAboveGroundLayer:level None:fcst time 0 hrs:from 201505240000
+28:197:197 (instant):lambert:heightAboveGroundLayer:level None:fcst time 0 hrs:from 201505240000
+29:230:230 (instant):lambert:heightAboveGroundLayer:level None:fcst time 0 hrs:from 201505240000
+30:238:238 (instant):lambert:heightAboveGroundLayer:level None:fcst time 0 hrs:from 201505240000
+31:239:239 (instant):lambert:heightAboveGroundLayer:level None:fcst time 0 hrs:from 201505240000
+32:241:241 (instant):lambert:heightAboveGroundLayer:level None:fcst time 0 hrs:from 201505240000
+33:Geopotential Height:gpm (instant):lambert:tropopause:level 0:fcst time 0 hrs:from 201505240000
+34:157:157 (instant):lambert:pressureFromGroundLayer:level None:fcst time 0 hrs:from 201505240000
+35:156:156 (instant):lambert:pressureFromGroundLayer:level None:fcst time 0 hrs:from 201505240000
+36:Temperature:K (instant):lambert:pressureFromGroundLayer:level None:fcst time 0 hrs:from 201505240000
+37:Pressure:Pa (instant):lambert:pressureFromGroundLayer:level None:fcst time 0 hrs:from 201505240000
+38:Geopotential Height:gpm (instant):lambert:adiabaticCondensation:level 0:fcst time 0 hrs:from 201505240000
+39:157:157 (instant):lambert:pressureFromGroundLayer:level None:fcst time 0 hrs:from 201505240000
+40:156:156 (instant):lambert:pressureFromGroundLayer:level None:fcst time 0 hrs:from 201505240000
+41:Temperature:K (instant):lambert:pressureFromGroundLayer:level None:fcst time 0 hrs:from 201505240000
+42:Pressure:Pa (instant):lambert:pressureFromGroundLayer:level None:fcst time 0 hrs:from 201505240000
+43:157:157 (instant):lambert:pressureFromGroundLayer:fcst time 0 hrs:from 201505240000
+44:156:156 (instant):lambert:pressureFromGroundLayer:fcst time 0 hrs:from 201505240000
+45:Temperature:K (instant):lambert:pressureFromGroundLayer:fcst time 0 hrs:from 201505240000
+46:Pressure:Pa (instant):lambert:pressureFromGroundLayer:fcst time 0 hrs:from 201505240000
+47:Snow depth gradient:m of water equivalent (instant):lambert:pressureFromGroundLayer:fcst time 0 hrs:from 201505240000
+48:Potential vorticity:K m**2 kg**-1 s**-1 (instant):lambert:theta:level 320:fcst time 0 hrs:from 201505240000
+None

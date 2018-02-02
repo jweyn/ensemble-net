@@ -1,0 +1,117 @@
+!=======================================================================
+! README.grib2
+!
+! This file describes the grib2 output files produced by UPP as part  
+! of the NCAR Ensemble Forecasting System. Files are stored on this
+! server in realtime for up to 5 days. 
+!
+! The table below lists the grib2 parameters used to describe the 
+! products. Additional sources of documentation are also provided.
+!
+! For more info: www.ensemble.ucar.edu
+! Contact: ensemble (at) ucar (dot) edu   
+!
+! Last Modified:  08 October 2015
+!
+! Please review UCAR's Terms of Use for details about data use:
+!     http://www2.ucar.edu/terms-of-use
+!
+!======================================================================= 
+
+FILENAME: ncar_3km_YYYYMMDD00_mem[1-10]_f[000-048].grb2
+          ex. ncar_3km_2015063000_mem1_f000.grb2
+
+Grib2 Documentation:
+http://www.nco.ncep.noaa.gov/pmb/docs/grib2/grib2_doc.shtml
+
+UPP Documentation:
+http://www.dtcenter.org/upp/users/index.php
+
+Helpful utilities: wgrib2
+http://www.cpc.ncep.noaa.gov/products/wesley/wgrib2/
+
+Extra Grib2 Tables Provided:
+grib2table    - For use with wgrib2 to inventory custom products (e.g. HAILK1, BMIN)
+                Either put this file in working directory, or set GRIB2TABLE envirn variable.
+
+grib2nc.table - Sample table to use with wgrib2 when converting to netcdf to rename variables.
+                >> wgrib2 filename.grb -nc_table grib2nc.table -netcdf outputfilename.nc
+
+!-----------------!
+!   GRIB2 TABLE   !
+!-----------------!
+
+For all fields:
+
+  Master Table = 2
+  Local Table  = 1
+  Center       = 7
+
+*  = Custom products derived within WRF
+** = Field is computed/output from WRF and passed through UPP into Grib file, no derivations performed within UPP 
+-------------------------------------------------------------------------------------------------------------------------------------------------
+| Record | Discipline | Category | Parameter | Abrev   |      Level (grib code)         |  Description                                  | Units |
+-------------------------------------------------------------------------------------------------------------------------------------------------
+|   1    |     0      |     3    |     0     |  PRES   | mean sea level  (101)          |  Mean Sea Level Pressure                      |  Pa   |
+|   2    |     0      |    16    |    196    |  REFC   | entire atmosphere (10)         |  Composite Reflectivity **                    |  dbz  |
+|   3    |     0      |    19    |     0     |  VIS    | surface (1)                    |  Visibility                                   |   m   |
+|   4    |     0      |     2    |    220    |  MAXUVV | 400-1000 mb above ground (108) |  Hourly Max Upward Vertical Velocity **       |  m/s  |
+|   5    |     0      |    16    |     4     |  REFD   | 4000 m above ground (103)      |  Reflectivity 1km AGL                         |  dbz  |
+|   6    |     0      |    16    |     4     |  REFD   | 1000 m above ground (103)      |  Reflectivity 4km AGL                         |  dbz  |
+|   7    |     0      |     7    |    197    |  UPHL   | 2000-5000 m above ground (103) |  Updraft Helicity  **                         |m^2/s^2|
+|   8    |     0      |    17    |     2     |  LTG1   | entire atmosphere (10)         |  LTG1 Maximum Lightning Threat 1 **           |km-2 5min-1|
+|   9    |     0      |    17    |     3     |  LTG2   | entire atmosphere (10)         |  LTG1 Maximum Lightning Threat 2 **           |km-2 5min-1|
+|  10    |     0      |    17    |     4     |  LTG3   | entire atmosphere (10)         |  LTG1 Maximum Lightning Threat 3 **           |km-2 5min-1|
+|  11    |     0      |     0    |     0     |  TMP    |  2 m above ground  (103)       |  2-meter Temperature                          |   K   |
+|  12    |     0      |     0    |     6     |  DPT    |  2 m above ground  (103)       |  2-meter Dewpoint                             |   K   |
+|  13    |     0      |     2    |     2     |  UGRD   | 10 m above ground  (103)       |  10-meter U-Component of Wind **              |  m/s  | 
+|  14    |     0      |     2    |     3     |  VGRD   | 10 m above ground  (103)       |  10-meter V-Component of Wind **              |  m/s  |
+|  15    |     0      |     2    |     1     |  WIND   | 10 m above ground  (103)       |  10-meter Hourly-Maximum Wind Speed **        |  m/s  |
+|  16    |     0      |     1    |     8     |  ACPC   |  surface (1)                   |  Total Precipitation **                       | kg/m^2|
+|  17    |     0      |     1    |    13     |  WEASD  |  surface (1)                   |  Water Equivalent of Accumulated Snow Depth **| kg/m^2|
+|  18    |     0      |     1    |    15     |  SNOL   |  surface (1)                   |  Hourly Accumulated Snow **                   | kg/m^2|
+|  19    |     0      |     1    |    36     |  CSNOW  |  surface (1)                   |  Categorical Snow                             |   -   |
+|  20    |     0      |     1    |    35     |  CICEP  |  surface (1)                   |  Categorical Ice Pellets                      |   -   |
+|  21    |     0      |     1    |    34     |  CFRZR  |  surface (1)                   |  Categorical Freezing Rain                    |   -   |
+|  22    |     0      |     1    |    33     |  CRAIN  |  surface (1)                   |  Categorical Rain                             |   -   |
+|  23    |     0      |     1    |    243    |  HAILK1 |  surface (1)                   |  Thompson Maximum Hail K1 *                   |   m   |
+|  24    |     0      |     1    |    244    |  HAIL2D |  surface (1)                   |  Thompson Maximum Hail 2D *                   |   m   | 
+|  25    |     0      |     7    |    10     |  LFTX   |  500-1000 mb (100)             |  Surface Lifted Index                         |   K   |
+|  26    |     0      |     7    |     6     |  CAPE   |  surface  (1)                  |  Surface-based CAPE                           |  J/kg |
+|  27    |     0      |     7    |     7     |  CIN    |  surface  (1)                  |  Surface-based CIN                            |  J/kg |
+|  28    |     0      |     7    |    200    |  BMIN   |  surface  (1)                  |  Surface-based Buoyancy Minimum *             |   K   |
+|  29    |     0      |     3    |    213    |  PBMIN  |  surface  (1)                  |  Pressure of Surface-based Buoyance Minimum * |   Pa  |
+|  30    |     0      |     1    |     3     |  PWAT   |  entire atmosphere  (10)       |  Precipitable Water                           | kg/m^2|
+|  31    |     0      |     3    |     5     |  HGT    |  cloud base                    |  Cloud Bottom Height                          |  gpm  |
+|  32    |     0      |     3    |     5     |  HGT    |  cloud ceiling                 |  Ceiling                                      |  gpm  |
+|  33    |     0      |     0    |     0     |  TMP    |  cloud top  (3)                |  Cloud Top Temperature                        |   K   |
+|  34    |     0      |     7    |     8     |  HLCY   |  3000-0 m above ground  (103)  |  Storm Relative Helicity 0-3km                |m^2/s^2|
+|  35    |     0      |     7    |     8     |  HLCY   |  1000-0 m above ground  (103)  |  Storm Relative Helicity 0-1km                |m^2/s^2|
+|  36    |     0      |     2    |    27     |  USTM   |  0-6000 m above ground  (103)  |  U-Component Storm Motion                     |  m/s  |
+|  37    |     0      |     2    |    28     |  VSTM   |  0-6000 m above ground  (103)  |  V-Component Storm Motion                     |  m/s  |
+|  38    |     0      |     2    |    15     |  VUCSH  |  0-1000 m above ground  (103)  |  Vertical U-Component Shear 0-1km             |  1/s  |
+|  39    |     0      |     2    |    16     |  VVCSH  |  0-1000 m above ground  (103)  |  Vertical V-Component Shear 0-1km             |  1/s  |
+|  40    |     0      |     2    |    15     |  VUCSH  |  0-6000 m above ground  (103)  |  Vertical U-Component Shear 0-6km             |  1/s  |
+|  41    |     0      |     2    |    16     |  VVCSH  |  0-6000 m above ground  (103)  |  Vertical V-Component Shear 0-6km             |  1/s  |
+|  42    |     0      |     3    |     5     |  HGT    |  tropopause (7)                |  Height of Tropopause                         |  gpm  |
+|  43    |     0      |     7    |     6     |  CAPE   |  180-0 mb above ground  (108)  |  Best Boundary CAPE                           |  J/kg |
+|  44    |     0      |     7    |     7     |  CIN    |  180-0 mb above ground  (108)  |  Best Boundary CIN                            |  J/kg |
+|  45    |     0      |     7    |    200    |  BMIN   |  180-0 mb above ground  (108)  |  Best Boundary Buoyancy Minimum *             |   K   |
+|  46    |     0      |     3    |    213    |  PBMIN  |  180-0 mb above ground  (108)  |  Pressure of Best Boundary Buoyancy Minimum * |   Pa  |
+|  47    |     0      |     3    |     5     |  HGT    | level of adiabatic condensation from sfc (5) |  Height AGL of Adiabatic Condensation | gpm |
+|  48    |     0      |     7    |     6     |  CAPE   |  90-0 mb above ground  (108)   |  Mixed Layer CAPE                             |  J/kg |
+|  49    |     0      |     7    |     7     |  CIN    |  90-0 mb above ground  (108)   |  Mixed Layer CIN                              |  J/kg |
+|  50    |     0      |     7    |    200    |  BMIN   |  90-0 mb above ground  (108)   |  Mixed Layer Buoyancy Minimum *               |   K   |
+|  51    |     0      |     3    |    213    |  PBMIN  |  90-0 mb above ground  (108)   |  Pressure of Mixed Layer Buoyancy Minimum *   |   Pa  |
+|  52    |     0      |     7    |     6     |  CAPE   |  255-0 mb above ground (108)   |  Most Unstable CAPE                           |  J/kg |
+|  53    |     0      |     7    |     7     |  CIN    |  255-0 mb above ground (108)   |  Most Unstable CIN                            |  J/kg |
+|  54    |     0      |     7    |    200    |  BMIN   |  255-0 mb above ground (108)   |  Most Unstable Buoyancy Minimum *             |   K   |
+|  55    |     0      |     3    |    213    |  PBMIN  |  255-0 mb above ground (108)   |  Pressure of Most Unstable Buoyancy Minimum * |   Pa  |
+|  56    |     0      |     3    |    200    |  PLPL   |  255 mb above ground   (108)   |  Pressure of level from which parcel is lifted|   Pa  |
+|  57    |     0      |     2    |    14     |  PVORT  | 320 K isentropic level (107)   |  Potential Vorticity                          |Km2kg-1s-1|   
+|  58    |     3      |    192   |     1     |  SBT123 |  top of atmosphere     (8)     |  Simulated Brightness Temperature GOES 12, Channel 3 | K |
+|  59    |     3      |    192   |     2     |  SBT124 |  top of atmosphere     (8)     |  Simulated Brightness Temperature GOES 12, Channel 4 | K |
+|  60    |     3      |    192   |     7     |  SBT113 |  top of atmosphere     (8)     |  Simulated Brightness Temperature GOES 11, Channel 3 | K |
+|  61    |     3      |    192   |     8     |  SBT114 |  top of atmosphere     (8)     |  Simulated Brightness Temperature GOES 11, Channel 4 | K |
+|  -     |     -      |     -    |     -     |    -    |           -                    |  [Note: satellite products not produced at fhr=00]   
+-----------------------------------------------------------------------------------------------------------------------------------------------------

@@ -1,0 +1,62 @@
+1:Mean sea level pressure:Pa (instant):lambert:meanSea:level 0:fcst time 12 hrs:from 201510150000
+2:Maximum/Composite radar reflectivity:dB (instant):lambert:unknown:level 0 10:fcst time 12 hrs:from 201510150000
+3:Visibility:m (instant):lambert:surface:level 0:fcst time 12 hrs:from 201510150000
+4:220:220 (instant):lambert:pressureFromGroundLayer:levels 40000-100000 Pa:fcst time 12 hrs:from 201510150000
+5:4:4 (instant):lambert:heightAboveGround:level 4000 m:fcst time 12 hrs:from 201510150000
+6:4:4 (instant):lambert:heightAboveGround:level 1000 m:fcst time 12 hrs:from 201510150000
+7:Updraft Helicity:m**2 s**-2 (instant):lambert:heightAboveGroundLayer:levels 2000-5000 m:fcst time 12 hrs:from 201510150000
+8:2:2 (instant):lambert:unknown:level 0 10:fcst time 12 hrs:from 201510150000
+9:3:3 (instant):lambert:unknown:level 0 10:fcst time 12 hrs:from 201510150000
+10:4:4 (instant):lambert:unknown:level 0 10:fcst time 12 hrs:from 201510150000
+11:2 metre temperature:K (instant):lambert:heightAboveGround:level 2 m:fcst time 12 hrs:from 201510150000
+12:2 metre dewpoint temperature:K (instant):lambert:heightAboveGround:level 2 m:fcst time 12 hrs:from 201510150000
+13:10 metre U wind component:m s**-1 (instant):lambert:heightAboveGround:level 10 m:fcst time 12 hrs:from 201510150000
+14:10 metre V wind component:m s**-1 (instant):lambert:heightAboveGround:level 10 m:fcst time 12 hrs:from 201510150000
+15:10 metre wind speed:m s**-1 (max):lambert:heightAboveGround:level 10 m:fcst time 11-12 hrs (max):from 201510150000
+16:Total Precipitation:kg m**-2 (accum):lambert:surface:level 0:fcst time 11-12 hrs (accum):from 201510150000
+17:Water equivalent of accumulated snow depth:kg m**-2 (accum):lambert:surface:level 0:fcst time 11-12 hrs (accum):from 201510150000
+18:Large scale snow:kg m**-2 (accum):lambert:surface:level 0:fcst time 11-12 hrs (accum):from 201510150000
+19:Categorical snow:(Code table 4.222) (instant):lambert:surface:level 0:fcst time 12 hrs:from 201510150000
+20:Categorical ice pellets:(Code table 4.222) (instant):lambert:surface:level 0:fcst time 12 hrs:from 201510150000
+21:Categorical freezing rain:(Code table 4.222) (instant):lambert:surface:level 0:fcst time 12 hrs:from 201510150000
+22:Categorical rain:(Code table 4.222) (instant):lambert:surface:level 0:fcst time 12 hrs:from 201510150000
+23:243:243 (instant):lambert:surface:level 0:fcst time 12 hrs:from 201510150000
+24:244:244 (instant):lambert:surface:level 0:fcst time 12 hrs:from 201510150000
+25:Surface lifted index:K (instant):lambert:isobaricLayer:levels 50000-100000 Pa:fcst time 12 hrs:from 201510150000
+26:Convective available potential energy:J kg**-1 (instant):lambert:surface:level 0:fcst time 12 hrs:from 201510150000
+27:Convective inhibition:J kg**-1 (instant):lambert:surface:level 0:fcst time 12 hrs:from 201510150000
+28:200:200 (instant):lambert:surface:level 0:fcst time 12 hrs:from 201510150000
+29:213:213 (instant):lambert:surface:level 0:fcst time 12 hrs:from 201510150000
+30:Precipitable water:kg m**-2 (instant):lambert:unknown:level 0 10:fcst time 12 hrs:from 201510150000
+31:Geopotential Height:gpm (instant):lambert:cloudBase:level 0:fcst time 12 hrs:from 201510150000
+32:Geopotential Height:gpm (instant):lambert:unknown:level 0 215:fcst time 12 hrs:from 201510150000
+33:Temperature:K (instant):lambert:cloudTop:level 0:fcst time 12 hrs:from 201510150000
+34:Storm relative helicity:J kg**-1 (instant):lambert:heightAboveGroundLayer:levels 3000-0 m:fcst time 12 hrs:from 201510150000
+35:Storm relative helicity:J kg**-1 (instant):lambert:heightAboveGroundLayer:levels 1000-0 m:fcst time 12 hrs:from 201510150000
+36:U-component storm motion:m s**-1 (instant):lambert:heightAboveGroundLayer:levels 0-6000 m:fcst time 12 hrs:from 201510150000
+37:V-component storm motion:m s**-1 (instant):lambert:heightAboveGroundLayer:levels 0-6000 m:fcst time 12 hrs:from 201510150000
+38:Vertical u-component shear:s**-1 (instant):lambert:heightAboveGroundLayer:levels 0-1000 m:fcst time 12 hrs:from 201510150000
+39:Vertical v-component shear:s**-1 (instant):lambert:heightAboveGroundLayer:levels 0-1000 m:fcst time 12 hrs:from 201510150000
+40:Vertical u-component shear:s**-1 (instant):lambert:heightAboveGroundLayer:levels 0-6000 m:fcst time 12 hrs:from 201510150000
+41:Vertical v-component shear:s**-1 (instant):lambert:heightAboveGroundLayer:levels 0-6000 m:fcst time 12 hrs:from 201510150000
+42:Geopotential Height:gpm (instant):lambert:tropopause:level 0:fcst time 12 hrs:from 201510150000
+43:Convective available potential energy:J kg**-1 (instant):lambert:pressureFromGroundLayer:levels 18000-0 Pa:fcst time 12 hrs:from 201510150000
+44:Convective inhibition:J kg**-1 (instant):lambert:pressureFromGroundLayer:levels 18000-0 Pa:fcst time 12 hrs:from 201510150000
+45:200:200 (instant):lambert:pressureFromGroundLayer:levels 18000-0 Pa:fcst time 12 hrs:from 201510150000
+46:213:213 (instant):lambert:pressureFromGroundLayer:levels 18000-0 Pa:fcst time 12 hrs:from 201510150000
+47:Geopotential Height:gpm (instant):lambert:adiabaticCondensation:level 0:fcst time 12 hrs:from 201510150000
+48:Convective available potential energy:J kg**-1 (instant):lambert:pressureFromGroundLayer:levels 9000-0 Pa:fcst time 12 hrs:from 201510150000
+49:Convective inhibition:J kg**-1 (instant):lambert:pressureFromGroundLayer:levels 9000-0 Pa:fcst time 12 hrs:from 201510150000
+50:200:200 (instant):lambert:pressureFromGroundLayer:levels 9000-0 Pa:fcst time 12 hrs:from 201510150000
+51:213:213 (instant):lambert:pressureFromGroundLayer:levels 9000-0 Pa:fcst time 12 hrs:from 201510150000
+52:Convective available potential energy:J kg**-1 (instant):lambert:pressureFromGroundLayer:levels 25500-0 Pa:fcst time 12 hrs:from 201510150000
+53:Convective inhibition:J kg**-1 (instant):lambert:pressureFromGroundLayer:levels 25500-0 Pa:fcst time 12 hrs:from 201510150000
+54:200:200 (instant):lambert:pressureFromGroundLayer:levels 25500-0 Pa:fcst time 12 hrs:from 201510150000
+55:213:213 (instant):lambert:pressureFromGroundLayer:levels 25500-0 Pa:fcst time 12 hrs:from 201510150000
+56:Pressure of level from which parcel was lifted:Pa (instant):lambert:pressureFromGround:level 25500 Pa:fcst time 12 hrs:from 201510150000
+57:Potential vorticity:K m**2 kg**-1 s**-1 (instant):lambert:theta:level 320 theta:fcst time 12 hrs:from 201510150000
+58:1:1 (instant):lambert:nominalTop:level 0:fcst time 12 hrs:from 201510150000
+59:2:2 (instant):lambert:nominalTop:level 0:fcst time 12 hrs:from 201510150000
+60:7:7 (instant):lambert:nominalTop:level 0:fcst time 12 hrs:from 201510150000
+61:8:8 (instant):lambert:nominalTop:level 0:fcst time 12 hrs:from 201510150000
+None
