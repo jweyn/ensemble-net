@@ -1,0 +1,130 @@
+"""
+Customized plotting functions for all data sources.
+"""
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+def plot_basemap(lon, lat, z, basemap, plot_type='contourf', plot_kwargs={},
+                 title=None, colorbar=True, colorbar_label=None, draw_grids=True,
+                 save_file=None, save_kwargs={}, width=6, height=4, ):
+    """
+    Function for plotting data on a given Basemap object.
+
+    :param lon: ndarray: 2-D longitude array
+    :param lat: ndarray: 2-D latitude array
+    :param z: ndarray: 2-D field to plot
+    :param basemap: Basemap: Basemap object on which to plot
+    :param plot_type: str: type of plot, e.g. contour or contourf
+    :param plot_kwargs: dict: kwargs passed to the plot function
+    :param title: str: title of plot
+    :param colorbar: bool: if True, plots a color bar
+    :param colorbar_label: str: name label for the color bar
+    :param draw_grids: bool: draw meridians/parallels
+    :param save_file: str: full path of file to save image to
+    :param save_kwargs: dict: kwargs passed to save function
+    :param width: int or float: width of output image
+    :param height: int or float: height of output image
+    :return: pyplot Figure object
+    """
+    fig = plt.figure()
+    plt.clf()
+    # plot_object = get_object('basemap.%s' % plot_type)
+    # c = plot_object(lon, lat, z, latlon=True, **plot_kwargs)
+    c = basemap.contourf(lon, lat, z, latlon=True, **plot_kwargs)
+    if colorbar:
+        cb = basemap.colorbar()
+        if colorbar_label is not None:
+            cb.set_label(colorbar_label)
+    basemap.drawcoastlines(linewidth=0.7)
+    basemap.drawcountries(linewidth=0.7)
+    basemap.drawstates(linewidth=0.4)
+    if draw_grids:
+        basemap.drawmeridians(np.arange(0, 360, 10))
+        basemap.drawparallels(np.arange(-90, 90, 10))
+    if title is not None:
+        plt.title(title)
+    fig.set_size_inches(width, height)
+    plt.tight_layout()
+    if save_file is not None:
+        plt.savefig(save_file, **save_kwargs)
+    return fig
+
+
+def plot_ncar(ncar_obj, variable, init_date, forecast_hour, member, plot_basemap_kwargs={}):
+    """
+    Wrapper to plot a specified field from an NCAR object
+    :param ncar_obj: data_tools.NCAR: NCAR object containing data
+    :param variable: str: variable to plot
+    :param init_date: datetime: datetime of run initialization
+    :param forecast_hour: int: forecast hour to plot
+    :param member: int: member number to plot
+    :param plot_basemap_kwargs: dict: kwargs passed to the plotting.plot_functions.plot_basemap function (see the doc
+    for plot_basemap for more information on options for Basemap plotting)
+    :return: pyplot Figure object
+    """
+    field = ncar_obj.field(variable, init_date, forecast_hour, member)
+    fig = plot_basemap(ncar_obj.lon, ncar_obj.lat, field, ncar_obj.basemap, **plot_basemap_kwargs)
+    return fig
+
+
+def slp_contour(fig, m, slp, lons, lats,
+                window=100):
+    def extrema(mat, mode='wrap', window=10):
+        """
+        Find the indices of local extrema (min and max)
+        in the input array.
+        """
+
+        from scipy.ndimage.filters import minimum_filter, maximum_filter
+
+        mn = minimum_filter(mat, size=window, mode=mode)
+        mx = maximum_filter(mat, size=window, mode=mode)
+        # (mat == mx) true if pixel is equal to the local max
+        # (mat == mn) true if pixel is equal to the local in
+        # Return the indices of the maxima, minima
+        return np.nonzero(mat == mn), np.nonzero(mat == mx)
+
+    caxisP = np.arange(900, 1050, 4)
+    c2 = m.contour(lons, lats, slp, caxisP,
+                   latlon=True, linewidth=1.0, colors='black')
+    plt.clabel(c2, c2.levels, inline=True, fmt='%0.0f')
+    # Plot highs and lows for slp
+    local_min, local_max = extrema(slp, mode='wrap', window=window)
+    x, y = m(lons, lats)
+    xlows = x[local_min];
+    xhighs = x[local_max]
+    ylows = y[local_min];
+    yhighs = y[local_max]
+    lowvals = slp[local_min];
+    highvals = slp[local_max]
+    # Plot lows
+    xyplotted = []
+    yoffset = 0.022 * (m.ymax - m.ymin)
+    dmin = 20.0 * yoffset
+    for x, y, p in zip(xlows, ylows, lowvals):
+        if (x < m.xmax - dmin and x > m.xmin + dmin and
+                y < m.ymax - dmin and y > m.ymin + dmin):
+            dist = [np.sqrt((x - x0) ** 2 + (y - y0) ** 2) for x0, y0 in xyplotted]
+            if not dist or min(dist) > dmin:
+                plt.text(x, y, 'L', fontsize=14, fontweight='bold',
+                         ha='center', va='center', color='r')
+                plt.text(x, y - yoffset, repr(int(p)), fontsize=9,
+                         ha='center', va='top', color='r',
+                         bbox=dict(boxstyle="square", ec='None', fc=(1, 1, 1, 0.5)))
+                xyplotted.append((x, y))
+    # Plot highs
+    xyplotted = []
+    for x, y, p in zip(xhighs, yhighs, highvals):
+        if (x < m.xmax - dmin and x > m.xmin + dmin and
+                y < m.ymax - dmin and y > m.ymin + dmin):
+            dist = [np.sqrt((x - x0) ** 2 + (y - y0) ** 2) for x0, y0 in xyplotted]
+            if not dist or min(dist) > dmin:
+                plt.text(x, y, 'H', fontsize=14, fontweight='bold',
+                         ha='center', va='center', color='b')
+                plt.text(x, y - yoffset, repr(int(p)), fontsize=9,
+                         ha='center', va='top', color='b',
+                         bbox=dict(boxstyle="square", ec='None', fc=(1, 1, 1, 0.5)))
+                xyplotted.append((x, y))
+    return fig

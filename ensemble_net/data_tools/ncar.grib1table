@@ -1,0 +1,52 @@
+1:MSLP:2:Mean sea level pressure:Pa (instant):lambert:meanSea:level 0
+2:TSRG:200:TOA incident solar radiation gradient:J m**-2 (instant):lambert:entireAtmosphere:level 0
+3:SWG4:0:Soil wetness level 4 gradient:m (accum):lambert:isobaricLayer:level 0
+4:SFCR:0:Surface net thermal radiation, clear sky gradient:J m**-2 (instant):lambert:heightAboveGround:level 1000
+5:TMPS4:0:Soil temperature level 4 gradient:K (accum):lambert:heightAboveGroundLayer:level 0
+6:TMP2:11:2 metre temperature:K (instant):lambert:heightAboveGround:level 2
+7:DPT2:17:2 metre dewpoint temperature:K (instant):lambert:heightAboveGround:level 2
+8:UGRD:33:10 metre U wind component:m s**-1 (instant):lambert:heightAboveGround:level 10
+9:VGRD:34:10 metre V wind component:m s**-1 (instant):lambert:heightAboveGround:level 10
+10:WIND:229:Hourly Max 10 metre wind speed:m s**-1 (max):lambert:heightAboveGround:level 10
+11:ACPC:61:Total Precipitation:kg m**-2 (accum):lambert:surface:level 0
+12:CSNOW:143:Categorical snow:(Code table 4.222) (instant):lambert:surface:level 0
+13:CICEP:142:Categorical ice pellets:(Code table 4.222) (instant):lambert:surface:level 0
+14:CFRZR:141:Categorical freezing rain:(Code table 4.222) (instant):lambert:surface:level 0
+15:CRAIN:140:Categorical rain:(Code table 4.222) (instant):lambert:surface:level 0
+16:HAILK1:250:Thompson Maximum Hail K1:m (instant):lambert:surface:level 0
+17:HAIL2D:251:Thompson Maximum Hail 2D:m (instant):lambert:surface:level 0
+18:LFTX:131:Surface lifted index:K (instant):lambert:isobaricLayer:levels 50000-100000 Pa
+19:CAPE:157:Convective available potential energy:J kg**-1 (instant):lambert:surface:level 0
+20:CIN:156:Convective inhibition:J kg**-1 (instant):lambert:surface:level 0
+21:BMIN:11:Surface-based Buoyancy Minimum:K (instant):lambert:surface:level 0
+22:PBMIN:1:Pressure of Surface-based Buoyancy Minimum:Pa (instant):lambert:surface:level 0
+23:PWAT:54:Precipitable water:kg m**-2 (instant):lambert:entireAtmosphere:level 0
+24:CTTMP:11:Cloud Top Temperature:K (instant):lambert:cloudTop:level 0
+25:HLCY3:190:Storm relative helicity 0-3 km:J kg**-1 (instant):lambert:heightAboveGroundLayer:levels 3000-0 m
+26:HLCY1:190:Storm relative helicity 0-1 km:J kg**-1 (instant):lambert:heightAboveGroundLayer:levels 1000-0 m
+27:USTM:196:U-component storm motion:m s**-1 (instant):lambert:heightAboveGroundLayer:levels 0-6000 m
+28:VSTM:197:V-component storm motion:m s**-1 (instant):lambert:heightAboveGroundLayer:levels 0-6000 m
+29:UBSHR1:230:Vertical u-component shear 0-1 km:s**-1 (instant):lambert:heightAboveGroundLayer:levels 0-1000 m
+30:VBSHR1:238:Vertical v-component shear 0-1 km:s**-1 (instant):lambert:heightAboveGroundLayer:levels 0-1000 m
+31:UBSHR6:239:Vertical u-component shear 0-6 km:s**-1 (instant):lambert:heightAboveGroundLayer:levels 0-6000 m
+32:VBSHR6:241:Vertical v-component shear 0-6 km:s**-1 (instant):lambert:heightAboveGroundLayer:levels 0-6000 m
+33:TPHGT:7:Geopotential Height of tropopause:gpm (instant):lambert:tropopause:level 0
+34:BBCAPE:157:Best Boundary Convective available potential energy:J kg**-1 (instant):lambert:pressureFromGroundLayer:levels 18000-0 Pa
+35:BBCIN:156:Best Boundary Convective inhibition:J kg**-1 (instant):lambert:pressureFromGroundLayer:levels 18000-0 Pa
+36:BBBMIN:11:Best Boundary Buoyancy Minimum:K (instant):lambert:pressureFromGroundLayer:levels 18000-0 Pa
+37:BBPBMIN:1:Pressure of Best Boundary Buoyancy Minimum:Pa (instant):lambert:pressureFromGroundLayer:levels 18000-0 Pa
+38:ACHGT:5:Geopotential Height of adiabatic condensation:gpm (instant):lambert:adiabaticCondensation:level 0
+39:MLCAPE:157:Mixed-layer Convective available potential energy:J kg**-1 (instant):lambert:pressureFromGroundLayer:levels 9000-0 Pa
+40:MLCIN:156:Mixed-layer Convective inhibition:J kg**-1 (instant):lambert:pressureFromGroundLayer:levels 9000-0 Pa
+41:MLBMIN:11:Mixed-layer Buoyancy Minimum:K (instant):lambert:pressureFromGroundLayer:levels 9000-0 Pa
+42:MLPBMIN:1:Pressure of Mixed-layer Buoyancy Minimum:Pa (instant):lambert:pressureFromGroundLayer:levels 9000-0 Pa
+43:MUCAPE:157:Most Unstable Convective available potential energy:J kg**-1 (instant):lambert:pressureFromGroundLayer:levels 25500-0 Pa
+44:MUCIN:156:Most Unstable Convective inhibition:J kg**-1 (instant):lambert:pressureFromGroundLayer:levels 25500-0 Pa
+45:MUBMIN:11:Most Unstable Buoyancy Minimum:K (instant):lambert:pressureFromGroundLayer:levels 25500-0 Pa
+46:MUPBMIN:1:Pressure of Most Unstable Buoyancy Minimum:Pa (instant):lambert:pressureFromGroundLayer:levels 25500-0 Pa
+47:SNOWDG:0:Snow depth gradient:m of water equivalent (instant):lambert:pressureFromGroundLayer:level 0
+48:PVORT:4:Potential vorticity:K m**2 kg**-1 s**-1 (instant):lambert:theta:level 320
+49:SBT123:1:Simulated Brightness Temperature GOES 12, Channel 3:K (instant):lambert:nominalTop:level 0
+50:SBT124:2:Simulated Brightness Temperature GOES 12, Channel 4:K (instant):lambert:nominalTop:level 0
+51:SBT113:7:Simulated Brightness Temperature GOES 11, Channel 3:K (instant):lambert:nominalTop:level 0
+52:SBT114:8:Simulated Brightness Temperature GOES 11, Channel 4:K (instant):lambert:nominalTop:level 0
