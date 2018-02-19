@@ -10,14 +10,14 @@ def plot_basemap(lon, lat, z, basemap, plot_type='contourf', plot_kwargs={},
                  title=None, colorbar=True, colorbar_label=None, draw_grids=True,
                  save_file=None, save_kwargs={}, width=6, height=4, ):
     """
-    Function for plotting data on a given Basemap object.
+    Function for plot data on a given Basemap object.
 
     :param lon: ndarray: 2-D longitude array
     :param lat: ndarray: 2-D latitude array
     :param z: ndarray: 2-D field to plot
     :param basemap: Basemap: Basemap object on which to plot
     :param plot_type: str: type of plot, e.g. contour or contourf
-    :param plot_kwargs: dict: kwargs passed to the plot function
+    :param plot_kwargs: dict: kwargs passed to the plot function. Use 'caxis' for plot contour levels.
     :param title: str: title of plot
     :param colorbar: bool: if True, plots a color bar
     :param colorbar_label: str: name label for the color bar
@@ -30,9 +30,11 @@ def plot_basemap(lon, lat, z, basemap, plot_type='contourf', plot_kwargs={},
     """
     fig = plt.figure()
     plt.clf()
-    # plot_object = get_object('basemap.%s' % plot_type)
-    # c = plot_object(lon, lat, z, latlon=True, **plot_kwargs)
-    c = basemap.contourf(lon, lat, z, latlon=True, **plot_kwargs)
+    plot_function = getattr(basemap, plot_type)
+    if 'caxis' in plot_kwargs:
+        c = plot_function(lon, lat, z, plot_kwargs.pop('caxis'), latlon=True, **plot_kwargs)
+    else:
+        c = plot_function(lon, lat, z, latlon=True, **plot_kwargs)
     if colorbar:
         cb = basemap.colorbar()
         if colorbar_label is not None:
@@ -41,8 +43,8 @@ def plot_basemap(lon, lat, z, basemap, plot_type='contourf', plot_kwargs={},
     basemap.drawcountries(linewidth=0.7)
     basemap.drawstates(linewidth=0.4)
     if draw_grids:
-        basemap.drawmeridians(np.arange(0, 360, 10))
-        basemap.drawparallels(np.arange(-90, 90, 10))
+        basemap.drawmeridians(np.arange(0, 360, 10), linecolor='0.5')
+        basemap.drawparallels(np.arange(-90, 90, 10), linecolor='0.5')
     if title is not None:
         plt.title(title)
     fig.set_size_inches(width, height)
@@ -60,10 +62,11 @@ def plot_ncar(ncar_obj, variable, init_date, forecast_hour, member, plot_basemap
     :param init_date: datetime: datetime of run initialization
     :param forecast_hour: int: forecast hour to plot
     :param member: int: member number to plot
-    :param plot_basemap_kwargs: dict: kwargs passed to the plotting.plot_functions.plot_basemap function (see the doc
-    for plot_basemap for more information on options for Basemap plotting)
+    :param plot_basemap_kwargs: dict: kwargs passed to the plot.plot_functions.plot_basemap function (see the doc
+    for plot_basemap for more information on options for Basemap plot)
     :return: pyplot Figure object
     """
+    print('plot_ncar: plot of %s at %s (f%03d, member %d)' % (variable, init_date, forecast_hour, member))
     field = ncar_obj.field(variable, init_date, forecast_hour, member)
     fig = plot_basemap(ncar_obj.lon, ncar_obj.lat, field, ncar_obj.basemap, **plot_basemap_kwargs)
     return fig

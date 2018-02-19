@@ -353,7 +353,7 @@ class NCAR(object):
 
     def generate_basemap(self, llcrnrlat=None, llcrnrlon=None, urcrnrlat=None, urcrnrlon=None):
         """
-        Generates a Basemap object for graphical plotting of NCAR data on a 2-D plane. Bounding box parameters
+        Generates a Basemap object for graphical plot of NCAR data on a 2-D plane. Bounding box parameters
         are either given, or if None, read from the extremes of the loaded lat/lon data. Other projection parameters
         are set to the default NCAR configuration.
 
@@ -368,9 +368,9 @@ class NCAR(object):
         print('generate_basemap: creating Basemap object')
         try:
             default = llcrnrlat * llcrnrlon * urcrnrlat * urcrnrlon  # error if any are None
-            default = True
-        except TypeError:
             default = False
+        except TypeError:
+            default = True
 
         lat_0 = 32.0
         lat_1 = 32.0
@@ -382,8 +382,10 @@ class NCAR(object):
                 lat = self.data['LAT']
                 lon = self.data['LON']
             except KeyError:
-                raise ValueError('I can generate a default Basemap with no parameters, but only if I have some '
+                raise ValueError('I can generate a default Basemap with None parameters, but only if I have some '
                                  'data loaded first!')
+            llcrnrlon, llcrnrlat = lon[0, 0], lat[0, 0]
+            urcrnrlon, urcrnrlat = lon[-1, -1], lat[-1, -1]
 
         basemap = Basemap(width=12000000, height=9000000, projection='lcc', llcrnrlat=llcrnrlat, urcrnrlat=urcrnrlat,
                           llcrnrlon=llcrnrlon, urcrnrlon=urcrnrlon, lat_0=lat_0, lon_0=lon_0, lat_1=lat_1,
