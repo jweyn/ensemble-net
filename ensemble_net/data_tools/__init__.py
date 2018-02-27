@@ -8,6 +8,3 @@ Requires:
 """
 
 from .ncar import NCAR
-
-
-__version__ = '0.0'
