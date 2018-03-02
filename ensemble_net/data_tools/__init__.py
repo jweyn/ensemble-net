@@ -7,4 +7,5 @@ Requires:
 - pygrib (use pip install from PyPi)
 """
 
-from .ncar import NCAR
+from .ncardict import NCARDict
+from .ncar import NCARArray

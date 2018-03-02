@@ -56,7 +56,7 @@ def plot_basemap(lon, lat, z, basemap, plot_type='contourf', plot_kwargs={},
 
 def plot_ncar(ncar_obj, variable, init_date, forecast_hour, member, plot_basemap_kwargs={}):
     """
-    Wrapper to plot a specified field from an NCAR object
+    Wrapper to plot a specified field from an NCAR object.
     :param ncar_obj: data_tools.NCAR: NCAR object containing data
     :param variable: str: variable to plot
     :param init_date: datetime: datetime of run initialization

@@ -2,8 +2,5 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/DeepCL" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/DeepCL/EasyCL" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/clBLAS" vcs="Git" />
   </component>
 </project>
