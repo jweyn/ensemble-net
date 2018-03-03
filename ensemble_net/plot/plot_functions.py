@@ -72,6 +72,10 @@ def plot_ncar(ncar_obj, variable, init_date, forecast_hour, member, plot_basemap
     return fig
 
 
+def plot_nexrad(radar_obj, date_time, plot_basemap_kwargs={}):
+    pass
+
+
 def slp_contour(fig, m, slp, lons, lats,
                 window=100):
     def extrema(mat, mode='wrap', window=10):

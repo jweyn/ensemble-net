@@ -47,7 +47,7 @@ data_start_date = datetime(2015, 4, 21)
 data_end_date = datetime(2017, 12, 31)
 data_grib1to2_date = datetime(2015, 9, 1)
 
-# Parameter tables for GRIB data. Should be included in distro
+# Parameter tables for GRIB data. Should be included in repository.
 dir_path = os.path.dirname(os.path.realpath(__file__))
 grib1_table = np.genfromtxt('%s/ncar.grib1table' % dir_path, dtype='str', delimiter=':')
 grib2_table = np.genfromtxt('%s/ncar.grib2table' % dir_path, dtype='str', delimiter=':')
@@ -77,9 +77,9 @@ class NCARArray(object):
         self.raw_files = []
         self.dataset_init_dates = []
         if root_directory is None:
-            self.root_directory = '%s/.ncar' % os.path.expanduser('~')
+            self._root_directory = '%s/.ncar' % os.path.expanduser('~')
         else:
-            self.root_directory = root_directory
+            self._root_directory = root_directory
         self.basemap = None
         # Known universal dimension sizes for the dataset
         self._member_coord = list(range(1, 11))
@@ -148,7 +148,7 @@ class NCARArray(object):
                 continue
             if init_date not in self.dataset_init_dates:
                 self.dataset_init_dates.append(init_date)
-            init_date_dir = datetime.strftime(init_date, ('%s/' % self.root_directory) + '%Y/%Y%m%d/')
+            init_date_dir = datetime.strftime(init_date, ('%s/' % self._root_directory) + '%Y/%Y%m%d/')
             os.makedirs(init_date_dir, exist_ok=True)
             for member in members:
                 if member not in self._member_coord:
@@ -190,7 +190,7 @@ class NCARArray(object):
             if verbose:
                 print(str(post.content))
             for file_tuple in self.raw_files:
-                local_file = '%s/%s' % (self.root_directory, file_tuple[0])
+                local_file = '%s/%s' % (self._root_directory, file_tuple[0])
                 if _check_exists(local_file):
                     if verbose:
                         print('local file %s exists; omitting' % local_file)
@@ -262,7 +262,8 @@ class NCARArray(object):
                     if var not in nc_fid.variables.keys():
                         if verbose:
                             print('Creating variable %s' % var)
-                        nc_var = nc_fid.createVariable(var, np.float32, ('member', 'time', 'south_north', 'west_east'))
+                        nc_var = nc_fid.createVariable(var, np.float32, ('member', 'time', 'south_north', 'west_east'),
+                                                       zlib=True)
                         try:
                             nc_var.setncatts({
                                 'long_name': getattr(variable, 'long_name'),
@@ -297,13 +298,13 @@ class NCARArray(object):
                     raise
             if verbose:
                 print('Writing latitude and longitude')
-            nc_var = nc_fid.createVariable('lat', np.float32, ('south_north', 'west_east'))
+            nc_var = nc_fid.createVariable('lat', np.float32, ('south_north', 'west_east'), zlib=True)
             nc_var.setncatts({
                 'long_name': 'Latitude',
                 'units': 'degrees_north'
             })
             nc_fid.variables['lat'][:] = lat
-            nc_var = nc_fid.createVariable('lon', np.float32, ('south_north', 'west_east'))
+            nc_var = nc_fid.createVariable('lon', np.float32, ('south_north', 'west_east'), zlib=True)
             nc_var.setncatts({
                 'long_name': 'Longitude',
                 'units': 'degrees_east'
@@ -338,7 +339,8 @@ class NCARArray(object):
                     if var not in nc_fid.variables.keys():
                         if verbose:
                             print('Creating variable %s' % var)
-                        nc_var = nc_fid.createVariable(var, np.float32, ('member', 'time', 'south_north', 'west_east'))
+                        nc_var = nc_fid.createVariable(var, np.float32, ('member', 'time', 'south_north', 'west_east'),
+                                                       zlib=True)
                         nc_var.setncatts({
                             'long_name': table[row, 3],
                             'units': table[row, 4]
@@ -360,7 +362,7 @@ class NCARArray(object):
         # Iterate over dates, create a netCDF variable, and write to a netCDF file
         for init_date in init_dates:
             # Create netCDF file, or append
-            nc_file_dir = '%s/processed' % self.root_directory
+            nc_file_dir = '%s/processed' % self._root_directory
             os.makedirs(nc_file_dir, exist_ok=True)
             nc_file_name = '%s/%s.nc' % (nc_file_dir, date_to_file_date(init_date))
             if verbose:
@@ -373,7 +375,7 @@ class NCARArray(object):
                     init_coord = False
                 else:
                     os.remove(nc_file_name)
-            nc_fid = nc.Dataset(nc_file_name, nc_file_open_type)
+            nc_fid = nc.Dataset(nc_file_name, nc_file_open_type, format='NETCDF4')
 
             # Initialize coordinates, if needed
             if init_coord:
@@ -387,7 +389,7 @@ class NCARArray(object):
                 nc_fid.createDimension('west_east', self._nx)
 
                 # Create unchanging member variable
-                nc_var = nc_fid.createVariable('member', np.int32, 'member')
+                nc_var = nc_fid.createVariable('member', np.int32, 'member', zlib=True)
                 nc_var.setncatts({
                     'long_name': 'Ensemble member number identifier',
                     'units': 'N/A'
@@ -395,7 +397,7 @@ class NCARArray(object):
                 nc_fid.variables['member'][:] = self._member_coord
 
                 # Create unchanging time variable
-                nc_var = nc_fid.createVariable('time', np.int32, 'time')
+                nc_var = nc_fid.createVariable('time', np.int32, 'time', zlib=True)
                 nc_var.setncatts({
                     'long_name': 'Time',
                     'units': 'hours since %s' % datetime.strftime(init_date, '%Y-%m-%d %H:%M')
@@ -416,7 +418,7 @@ class NCARArray(object):
                     # Do the GRIB part
                     grib_file_name = datetime.strftime(init_date, grib_file_format)
                     grib_file_name = grib_file_name.format(member, forecast_hour)
-                    grib_file_name = '%s/%s' % (self.root_directory, grib_file_name)
+                    grib_file_name = '%s/%s' % (self._root_directory, grib_file_name)
                     # Check whether we need the grib1 or grib2 file
                     if init_date >= data_grib1to2_date:
                         grib_file_name = grib_file_name + '2'
@@ -433,7 +435,7 @@ class NCARArray(object):
                     if use_ncar_netcdf:
                         diags_file_name = datetime.strftime(init_date, diags_file_format)
                         diags_file_name = diags_file_name.format(member, forecast_hour)
-                        diags_file_name = '%s/%s' % (self.root_directory, diags_file_name)
+                        diags_file_name = '%s/%s' % (self._root_directory, diags_file_name)
                         read_write_diags(diags_file_name)
 
                     # Delete files if requested
@@ -447,12 +449,12 @@ class NCARArray(object):
 
     def load(self, **dataset_kwargs):
         """
-        Load an xarray multi-file Dataset for the initialization dates in self.dataset_init_dates. Once loaded, this
-        Dataset is accessible by self.Dataset.
+        Load an xarray multi-file Dataset for the processed files with initialization dates in self.dataset_init_dates.
+        Once loaded, this Dataset is accessible by self.Dataset.
         :param dataset_kwargs: kwargs passed to xarray.open_mfdataset()
         :return:
         """
-        nc_file_dir = '%s/processed' % self.root_directory
+        nc_file_dir = '%s/processed' % self._root_directory
         nc_files = ['%s/%s.nc' % (nc_file_dir, date_to_file_date(d)) for d in self.dataset_init_dates]
         self.Dataset = xr.open_mfdataset(nc_files, **dataset_kwargs)
 

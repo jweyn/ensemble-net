@@ -53,7 +53,7 @@ def date_to_string(date):
     """
     if date is None:
         return
-    if isinstance(date, datetime):
+    if not isinstance(date, str):
         return datetime.strftime(date, '%Y-%m-%d %H:%M')
 
 
@@ -73,5 +73,5 @@ def date_to_file_date(date):
     """
     if date is None:
         return
-    if isinstance(date, datetime):
+    if not isinstance(date, str):
         return datetime.strftime(date, '%Y%m%d%H')

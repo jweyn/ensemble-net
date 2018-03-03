@@ -9,3 +9,4 @@ Requires:
 
 from .ncardict import NCARDict
 from .ncar import NCARArray
+from .iem_nexrad import IEMRadar
