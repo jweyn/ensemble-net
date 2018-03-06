@@ -13,7 +13,7 @@ from numba import jit
 @jit(nopython=True)
 def _fss(io, im, kernel, norm=1.):
     ny = io.shape[0]
-    nx = io.shape[0]
+    nx = io.shape[1]
     nl = kernel.shape[0]
     nk = kernel.shape[1]
     ks = np.sum(kernel)

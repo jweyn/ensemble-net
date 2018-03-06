@@ -12,27 +12,29 @@ import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
 from scipy.interpolate import interp2d, griddata
+import pickle
 
 
 # Grid parameters: subset the latitude and longitude
-lat_0 = 30
-lat_1 = 31
-lon_0 = 265
-lon_1 = 266
+lat_0 = 31.
+lat_1 = 36.
+lon_0 = 267.5
+lon_1 = 277.5
 
 verification_forecast_hours = list(range(12, 49, 12))
-fss_threshold = 30.
-fss_neighborhood = 4
+fss_threshold = 20.
+fss_neighborhood = 5
+required_areal_fraction = 0.01
 
 
 # Create an NCAR Ensemble object to load data from
 start_init_date = datetime(2016, 4, 1)
-end_init_date = datetime(2016, 4, 2)
+end_init_date = datetime(2016, 4, 30)
 init_dates = list(pd.date_range(start=start_init_date, end=end_init_date, freq='D').to_pydatetime())
 
 ensemble = NCARArray(root_directory='/Users/jweyn/Data/NCAR_Ensemble')
 ensemble.set_init_dates(init_dates)
-ensemble.load(concat_dim='init_date', autoclose=True)
+ensemble.load(concat_dim='init_date', coords=[], autoclose=True)
 
 
 # Create a Radar object to load data from
@@ -59,14 +61,23 @@ y1, x1 = lower_left_index
 y2, x2 = upper_right_index
 lat_subset = ensemble.lat[y1:y2, x1:x2]
 lon_subset = ensemble.lon[y1:y2, x1:x2]
-y1r, x1r = closest_lat_lon_1d(radar.lat, radar.lon, lat_0, lon_0)
-y2r, x2r = closest_lat_lon_1d(radar.lat, radar.lon, lat_1, lon_1)
-lat_subset_r, lon_subset_r = np.meshgrid(radar.lat[y1r:y2r], radar.lon[x1r:x2r])
+num_points = lat_subset.shape[0] * lat_subset.shape[1]
+# For radar, add / subtract a few fractions of degrees to encompass slightly larger area of model grid projection
+padding = 1.0
+y1r, x1r = closest_lat_lon_1d(radar.lat, radar.lon, lat_0-padding, lon_0-padding)
+y2r, x2r = closest_lat_lon_1d(radar.lat, radar.lon, lat_1+padding, lon_1+padding)
+lon_subset_r, lat_subset_r = np.meshgrid(radar.lon[x1r:x2r], radar.lat[y1r:y2r])
 
 
-# Define the FSS arrays
+# Generate a baseMap for plotting
+ensemble.generate_basemap(llcrnrlat=lat_subset[0, 0], llcrnrlon=lon_subset[0, 0],
+                          urcrnrlat=lat_subset[-1, -1], urcrnrlon=lon_subset[-1, -1])
+
+
+# Define the FSS and count arrays
 fss_array = np.zeros((len(init_dates), len(verification_forecast_hours), 10))
 fss_mean_array = np.zeros((len(init_dates), len(verification_forecast_hours)))
+fraction_points_exceeding = np.zeros((len(init_dates), len(verification_forecast_hours)))
 
 
 # Iterate over the initialization times. At each time, calculate the ensemble PMM, interpolate the verification radar,
@@ -75,31 +86,60 @@ for d in range(len(init_dates)):
     init_date = init_dates[d]
     for v in range(len(verification_forecast_hours)):
         verif_hour = verification_forecast_hours[v]
+        verif_datetime = init_date + timedelta(hours=verif_hour)
         # Get the ensemble data
-        time_index = ensemble._forecast_hour_coord.index(verif_hour)
-        ensemble_array = ensemble.Dataset.variables['REFD1'][d, :, time_index, y1:y2, x1:x2]
+        # Time is concatenated by xarray, so we have to use this funky index search
+        time_index = list(ensemble.Dataset.variables['time'].values).index(np.datetime64(verif_datetime))
+        ensemble_array = ensemble.Dataset.variables['REFD1'][d, :, time_index, y1:y2, x1:x2].values
 
         # Get the radar data
-        verif_epoch_time = int(((init_date + timedelta(hours=verif_hour)) - datetime(1970, 1, 1)).total_seconds())
+        verif_epoch_time = int((verif_datetime - datetime(1970, 1, 1)).total_seconds())
         radar_time_index = list(radar.time).index(verif_epoch_time)
-        radar_array = radar.Dataset.variables['composite_n0q'][radar_time_index, y1r:y2r, x1r:x2r]
-        print(np.nanmax(radar_array.values))
+        radar_array = radar.Dataset.variables['composite_n0q'][radar_time_index, y1r:y2r, x1r:x2r].values
+        # Set the missing values (fillValues) to -30
+        radar_array[np.isnan(radar_array)] = -30.
+        print('At time %s + %d hours, the maximum observed radar return is %0.1f' %
+              (init_date, verif_hour, np.max(radar_array)))
 
-        # Interpolate
+        # If we don't meet the criterion for areal coverage, pass
+        fraction_points_exceeding[d, v] = np.count_nonzero(radar_array > fss_threshold) / num_points
+        if fraction_points_exceeding[d, v] < required_areal_fraction:
+            print('Omitting FSS calculation; fractional coverage exceeding %0.0f dBZ (%0.4f) less than specified' %
+                  (fss_threshold, fraction_points_exceeding[d, v]))
+            continue
+
+        # Interpolate radar data to model grid
         # interp_function = interp2d()
         # radar_interpolated = interp_function(lat_subset.flatten(), lon_subset.flatten())
         radar_interpolated = griddata(np.vstack((lat_subset_r.flatten(), lon_subset_r.flatten())).T,
-                                      radar_array.values.flatten(),
+                                      radar_array.flatten(),
                                       np.vstack((lat_subset.flatten(), lon_subset.flatten())).T, method='cubic')
         radar_interpolated = radar_interpolated.reshape(lat_subset.shape)
-        print(np.nanmax(radar_interpolated))
+        print('The maximum interpolated observed radar return is %0.1f' % np.nanmax(radar_interpolated))
+        print('The ensemble maximum modeled radar return is %0.1f' % np.nanmax(ensemble_array))
 
         # Calculate PMM and FSS
-        if np.max(radar_interpolated) < fss_threshold or ~np.any(~np.isnan(radar_interpolated)):
+        if np.nanmax(radar_interpolated) < fss_threshold:
             fss_mean_array[d, v] = np.nan
             fss_array[d, v, :] = np.nan
             continue
-        ensemble_mean = probability_matched_mean(np.squeeze(ensemble_array.values), axis=0)
+        ensemble_mean = probability_matched_mean(np.squeeze(ensemble_array), axis=0)
         fss_mean_array[d, v] = fss(ensemble_mean, radar_interpolated, fss_threshold, neighborhood=fss_neighborhood)
         fss_array[d, v, :] = fss(ensemble_array, np.stack((radar_interpolated,)*10, axis=0),
                                  fss_threshold, neighborhood=fss_neighborhood)
+        print('The FSS of the ensemble probability-matched mean is %0.3f' % fss_mean_array[d, v])
+
+
+# Save a pickle file
+
+export_file = './oracle.pkl'
+export_dict = {
+    'init_dates': init_dates,
+    'verification_hours': verification_forecast_hours,
+    'FSS': fss_array,
+    'FSS_mean': fss_mean_array,
+    'fraction_points': fraction_points_exceeding
+}
+
+with open(export_file, 'rb') as handle:
+    pickle.dump(export_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)

@@ -461,6 +461,7 @@ class NCARArray(object):
     def field(self, variable, init_date, forecast_hour, member):
         """
         Shortcut method to return a 2-D numpy array from the data loaded in an NCARArray.
+        :param variable: str: variable to retrieve
         :param init_date: datetime: model initialization date
         :param forecast_hour: int: forecast hour
         :param member: int: member
@@ -493,7 +494,6 @@ class NCARArray(object):
         """
         from mpl_toolkits.basemap import Basemap
 
-        print('generate_basemap: creating Basemap object')
         try:
             default = llcrnrlat * llcrnrlon * urcrnrlat * urcrnrlon  # error if any are None
             default = False
