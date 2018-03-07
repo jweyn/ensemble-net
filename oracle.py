@@ -11,8 +11,7 @@ import xarray as xr
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
-from scipy.interpolate import interp2d, griddata
-import pickle
+from scipy.interpolate import griddata
 
 
 # Grid parameters: subset the latitude and longitude
@@ -30,7 +29,8 @@ required_areal_fraction = 0.01
 # Create an NCAR Ensemble object to load data from
 start_init_date = datetime(2016, 4, 1)
 end_init_date = datetime(2016, 4, 30)
-init_dates = list(pd.date_range(start=start_init_date, end=end_init_date, freq='D').to_pydatetime())
+pd_date_range = pd.date_range(start=start_init_date, end=end_init_date, freq='D')
+init_dates = list(pd_date_range.to_pydatetime())
 
 ensemble = NCARArray(root_directory='/Users/jweyn/Data/NCAR_Ensemble')
 ensemble.set_init_dates(init_dates)
@@ -87,10 +87,6 @@ for d in range(len(init_dates)):
     for v in range(len(verification_forecast_hours)):
         verif_hour = verification_forecast_hours[v]
         verif_datetime = init_date + timedelta(hours=verif_hour)
-        # Get the ensemble data
-        # Time is concatenated by xarray, so we have to use this funky index search
-        time_index = list(ensemble.Dataset.variables['time'].values).index(np.datetime64(verif_datetime))
-        ensemble_array = ensemble.Dataset.variables['REFD1'][d, :, time_index, y1:y2, x1:x2].values
 
         # Get the radar data
         verif_epoch_time = int((verif_datetime - datetime(1970, 1, 1)).total_seconds())
@@ -106,7 +102,14 @@ for d in range(len(init_dates)):
         if fraction_points_exceeding[d, v] < required_areal_fraction:
             print('Omitting FSS calculation; fractional coverage exceeding %0.0f dBZ (%0.4f) less than specified' %
                   (fss_threshold, fraction_points_exceeding[d, v]))
+            fss_mean_array[d, v] = np.nan
+            fss_array[d, v, :] = np.nan
             continue
+
+        # Get the ensemble data
+        # Time is concatenated by xarray, so we have to use this funky index search
+        time_index = list(ensemble.Dataset.variables['time'].values).index(np.datetime64(verif_datetime))
+        ensemble_array = ensemble.Dataset.variables['REFD1'][d, :, time_index, y1:y2, x1:x2].values
 
         # Interpolate radar data to model grid
         # interp_function = interp2d()
@@ -130,16 +133,48 @@ for d in range(len(init_dates)):
         print('The FSS of the ensemble probability-matched mean is %0.3f' % fss_mean_array[d, v])
 
 
-# Save a pickle file
+# Save a file
 
-export_file = './oracle.pkl'
-export_dict = {
-    'init_dates': init_dates,
-    'verification_hours': verification_forecast_hours,
-    'FSS': fss_array,
-    'FSS_mean': fss_mean_array,
-    'fraction_points': fraction_points_exceeding
+data = xr.Dataset({
+    'FSS': (['init', 'forecast_hour', 'member'], fss_array, {
+        'long_name': 'Fractions skill scores of individual ensemble members'
+    }),
+    'FSS_mean': (['init', 'forecast_hour'], fss_mean_array, {
+        'long_name': 'Fractions skill score of the ensemble probability-matched mean'
+    }),
+    'fraction': (['init', 'forecast_hour'], fraction_points_exceeding, {
+        'long_name': 'Fraction of points exceeding threshold radar value'
+    })
+}, coords={
+    'init': pd_date_range,
+    'forecast_hour': verification_forecast_hours,
+    'member': np.array(range(1, 11), dtype=np.int32)
+}, attrs={
+    'description': 'Fractions skill score for the NCAR ensemble 1-km base reflectivity',
+    'units': 'dBZ',
+    'fss_threshold': fss_threshold,
+    'fraction_points_required': required_areal_fraction
+})
+
+data.to_netcdf('./oracle.nc', format='NETCDF4')
+
+
+# Generate a plot for testing
+import matplotlib.pyplot as plt
+import matplotlib.cm
+from ensemble_net.plot import plot_basemap
+
+plot_kwargs = {
+    'plot_kwargs': {
+        'cmap': matplotlib.cm.gist_ncar,
+        'vmin': -20.,
+        'vmax': 75.,
+    },
+    'plot_type': 'pcolormesh',
+    'title': 'Base reflectivity at %s' % verif_datetime,
+    'colorbar_label': 'dBZ',
 }
 
-with open(export_file, 'rb') as handle:
-    pickle.dump(export_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+radar_array[radar_array <= -20] = np.nan
+plot_basemap(lon_subset_r, lat_subset_r, radar_array, ensemble.basemap, **plot_kwargs)
+plt.show()
