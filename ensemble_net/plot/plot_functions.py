@@ -54,28 +54,6 @@ def plot_basemap(lon, lat, z, basemap, plot_type='contourf', plot_kwargs={},
     return fig
 
 
-def plot_ncar(ncar_obj, variable, init_date, forecast_hour, member, **plot_basemap_kwargs):
-    """
-    Wrapper to plot a specified field from an NCAR object.
-    :param ncar_obj: data_tools.NCAR: NCAR object containing data
-    :param variable: str: variable to plot
-    :param init_date: datetime: datetime of run initialization
-    :param forecast_hour: int: forecast hour to plot
-    :param member: int: member number to plot
-    :param plot_basemap_kwargs: kwargs passed to the plot.plot_functions.plot_basemap function (see the doc for
-    plot_basemap for more information on options for Basemap plot)
-    :return: pyplot Figure object
-    """
-    print('plot_ncar: plot of %s at %s (f%03d, member %d)' % (variable, init_date, forecast_hour, member))
-    field = ncar_obj.field(variable, init_date, forecast_hour, member)
-    fig = plot_basemap(ncar_obj.lon, ncar_obj.lat, field, ncar_obj.basemap, **plot_basemap_kwargs)
-    return fig
-
-
-def plot_nexrad(radar_obj, date_time, plot_basemap_kwargs={}):
-    pass
-
-
 def slp_contour(fig, m, slp, lons, lats,
                 window=100):
     def extrema(mat, mode='wrap', window=10):

@@ -7,7 +7,7 @@ import numpy as np
 import netCDF4 as nc
 import pygrib
 import xarray as xr
-from datetime import date, datetime
+from datetime import datetime
 from ..util import date_to_file_date
 
 
@@ -520,3 +520,21 @@ class NCARArray(object):
                           lat_2=lat_2, resolution='l')
 
         self.basemap = basemap
+
+    def plot(self, variable, init_date, forecast_hour, member, **plot_basemap_kwargs):
+        """
+        Wrapper to plot a specified field from an NCAR object.
+        :param ncar_obj: data_tools.NCAR: NCAR object containing data
+        :param variable: str: variable to plot
+        :param init_date: datetime: datetime of run initialization
+        :param forecast_hour: int: forecast hour to plot
+        :param member: int: member number to plot
+        :param plot_basemap_kwargs: kwargs passed to the plot.plot_functions.plot_basemap function (see the doc for
+        plot_basemap for more information on options for Basemap plot)
+        :return: pyplot Figure object
+        """
+        from ..plot import plot_basemap
+        print('NCARArray plot: plot of %s at %s (f%03d, member %d)' % (variable, init_date, forecast_hour, member))
+        field = self.field(variable, init_date, forecast_hour, member)
+        fig = plot_basemap(self.lon, self.lat, field, self.basemap, **plot_basemap_kwargs)
+        return fig
