@@ -1,12 +1,21 @@
+#
+# Copyright (c) 2017-18 Jonathan Weyn <jweyn@uw.edu>
+#
+# See the file LICENSE for your rights.
+#
+
 """
 Plotting utilities.
 """
 
+import numpy as np
 from matplotlib.colors import LinearSegmentedColormap, ListedColormap
 
 
 def rotate_vector_r(basemap, uin, vin, lons, lats, returnxy=False):
     """
+    I got this method from StackOverflow at some point, but didn't document its origin. Work is not my own.
+
     Similar to Basemap.rotate_vector except that it returns map-projected
     vectors to horizontal grid vectors. The following is the docstring
     for Basemap.rotate_vector. Note this function takes the basemap instance

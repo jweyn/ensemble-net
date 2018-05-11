@@ -1,3 +1,9 @@
+#
+# Copyright (c) 2017-18 Jonathan Weyn <jweyn@uw.edu>
+#
+# See the file LICENSE for your rights.
+#
+
 """
 Old NCAR utilities module that relied on dictionary output. THIS MODULE IS DEPRECATED IN FAVOR OF ncar.py
 """

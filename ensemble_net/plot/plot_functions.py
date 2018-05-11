@@ -1,5 +1,11 @@
+#
+# Copyright (c) 2017-18 Jonathan Weyn <jweyn@uw.edu>
+#
+# See the file LICENSE for your rights.
+#
+
 """
-Customized plotting functions for all data sources.
+General plotting functions for all data sources.
 """
 
 import numpy as np

@@ -1,3 +1,9 @@
+#
+# Copyright (c) 2017-18 Jonathan Weyn <jweyn@uw.edu>
+#
+# See the file LICENSE for your rights.
+#
+
 """
 Utilities for retrieving and processing NCAR ensemble data using XArray
 """

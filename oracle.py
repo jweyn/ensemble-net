@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+#
+# Copyright (c) 2017-18 Jonathan Weyn <jweyn@uw.edu>
+#
+# See the file LICENSE for your rights.
+#
+
 """
 The ORACLE determines how much better a forecast would have been by knowing in advance which ensemble member
 performed best at the verification time. We then find out how much we'd gain over the ensemble mean by using the best

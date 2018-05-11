@@ -1,3 +1,9 @@
+#
+# Copyright (c) 2017-18 Jonathan Weyn <jweyn@uw.edu>
+#
+# See the file LICENSE for your rights.
+#
+
 """
 Utilities for downloading and processing radar data from the Iowa Environmental Mesonet. It will retrieve both PNG and
 netCDF files, but for now, only netCDF (while slower) is implemented, for ease of use. In the future, we will implement
