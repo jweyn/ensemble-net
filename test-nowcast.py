@@ -11,7 +11,7 @@ Test the nowcast module.
 
 import pickle
 from ensemble_net.data_tools import NCARArray, IEMRadar
-from ensemble_net.nowcast import preprocessing
+from ensemble_net.nowcast import preprocessing, NowCast
 import pandas as pd
 import xarray as xr
 from datetime import datetime, timedelta
@@ -35,8 +35,8 @@ variables = ('TMP2', 'DPT2', 'MSLP', 'UGRD', 'VGRD')
 
 ensemble = NCARArray(root_directory='/Users/jweyn/Data/NCAR_Ensemble')
 ensemble.set_init_dates(init_dates)
-# ensemble.retrieve(init_dates, forecast_hours, members, get_ncar_netcdf=False, verbose=True)
-# ensemble.write(variables, forecast_hours=forecast_hours, use_ncar_netcdf=False, verbose=True)
+ensemble.retrieve(init_dates, forecast_hours, members, get_ncar_netcdf=False, verbose=True)
+ensemble.write(variables, forecast_hours=forecast_hours, use_ncar_netcdf=False, verbose=True)
 ensemble.load(coords=[], autoclose=True,
               chunks={'member': 1, 'time': 24, 'south_north': 100, 'west_east': 100})
 
@@ -53,3 +53,40 @@ save_vars = {
 }
 with open('./nowcast-variables.pkl', 'wb') as handle:
     pickle.dump(save_vars, handle, pickle.HIGHEST_PROTOCOL)
+
+
+# Open the temporary data
+with open('./nowcast-variables.pkl', 'rb') as handle:
+    save_vars = pickle.load(handle)
+predictors = save_vars['predictors']
+targets = save_vars['targets']
+
+
+# Format data
+predictors, input_shape = preprocessing.reshape_keras_inputs(predictors)
+targets = targets[:, 5:-5, 5:-5, ...]
+target_shape = targets.shape
+targets = targets.reshape(target_shape[0], -1)
+num_outputs = targets.shape[1]
+
+
+# Build a NowCast model
+nowcast = NowCast()
+layers = (
+    ('Conv2D', (32,), {
+        'kernel_size': (3, 3),
+        'activation': 'relu',
+        'input_shape': input_shape
+    }),
+    ('MaxPooling2D', None, {
+        'pooling_size': (2, 2)
+    }),
+    ('Dropout', 0.25, {}),
+    ('Flatten', None, {}),
+    ('Dense', num_outputs, {
+        'activation': 'linear'
+    })
+)
+
+nowcast.build_model(layers=layers, loss='mse', optimizer='adam', metrics=['mae'])
+nowcast.fit(predictors, targets, batch_size=32, epochs=20, verbose=1)

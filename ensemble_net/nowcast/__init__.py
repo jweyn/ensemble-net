@@ -5,3 +5,4 @@
 #
 
 from . import preprocessing
+from .model import *

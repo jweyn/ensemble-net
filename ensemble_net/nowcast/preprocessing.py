@@ -9,6 +9,7 @@ import pickle
 import xarray as xr
 from ..data_tools import NCARArray
 from datetime import datetime, timedelta
+import keras.backend as K
 
 
 def train_data_from_NCAR(ncar, xlim, ylim, variables=(), latlon=False, lead_time=1, train_time_steps=1,
@@ -160,3 +161,26 @@ def train_data_from_pickle(pickle_file,):
         save_vars = pickle.load(handle)
 
     return save_vars['predictors'], save_vars['targets']
+
+
+def reshape_keras_inputs(predictors):
+    """
+    Accepts ndarrays of predictor data and reshapes it to the shape expected by the Keras backend. The array provided
+    here should be of shape num_samples*num_y*num_x*any_other_dims, and will be reshaped to num_samples by either other
+    channels first or y, x first.
+
+    :param predictors: ndarray of predictor data
+    :return: reshaped predictors, along with an input_shape parameter to pass to Keras layers
+    """
+    num_samples, num_y, num_x = predictors.shape[:3]
+    try:
+        num_channels = np.cumprod(list(predictors.shape[3:]))[-1]
+    except IndexError:
+        num_channels = None
+    if num_channels is None:
+        return predictors, predictors.shape[1:]
+    predictors = predictors.reshape((num_samples, num_y, num_x, num_channels))
+    if K.image_data_format() == 'channels_first':
+        predictors = predictors.transpose((0, 3, 1, 2))
+    return predictors, predictors.shape[1:]
+
