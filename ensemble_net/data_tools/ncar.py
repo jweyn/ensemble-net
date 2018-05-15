@@ -89,7 +89,7 @@ class NCARArray(object):
         self.basemap = None
         # Known universal dimension sizes for the dataset
         self._member_coord = list(range(1, 11))
-        self._forecast_hour_coord = list(range(0, 49, 12))
+        self._forecast_hour_coord = list(range(0, 49))
         self._ny = 985
         self._nx = 1580
         self.Dataset = None
@@ -121,7 +121,28 @@ class NCARArray(object):
             return
 
     def set_init_dates(self, init_dates):
-        self.dataset_init_dates = init_dates
+        """
+        Set the NCARArray object's dataset_init_dates attribute, a list of datetime objects which determines which
+        ensemble runs are retrieved and processed. This attribute is set automatically when using the method 'retrieve',
+        but may be used when 'retrieve' is not desired or as an override.
+
+        :param init_dates: list of datetime objects.
+        :return:
+        """
+        self.dataset_init_dates = list(init_dates)
+
+    def closest_lat_lon(self, lat, lon):
+        """
+        Find the grid-point index of the closest point to the specified latitude and longitude values in loaded
+        NCARArray data.
+        :param lat: float or int: latitude in degrees
+        :param lon: float or int: longitude in degrees
+        :return:
+        """
+        if lon < 0.:
+            lon += 360.
+        distance = (self.lat - lat) ** 2 + (self.lon - lon) ** 2
+        return np.unravel_index(np.argmin(distance, axis=None), distance.shape)
 
     def retrieve(self, init_dates, forecast_hours, members, get_ncar_netcdf=False, verbose=False):
         """
@@ -205,10 +226,14 @@ class NCARArray(object):
                 remote_file = '%s/%s' % (data_url_root, ''.join(file_tuple))
                 if verbose:
                     print('downloading %s' % remote_file)
-                response = c.get(remote_file, verify=False)
-                with open(local_file, 'wb') as fd:
-                    for chunk in response.iter_content(chunk_size=128):
-                        fd.write(chunk)
+                try:
+                    response = c.get(remote_file, verify=False)
+                    with open(local_file, 'wb') as fd:
+                        for chunk in response.iter_content(chunk_size=128):
+                            fd.write(chunk)
+                except BaseException as e:
+                    print('warning: failed to download %s' % remote_file)
+                    print('* Reason: "%s"' % str(e))
 
     def write(self, variables, init_dates='all', forecast_hours='all', members='all', use_ncar_netcdf=False,
               write_into_existing=True, delete_raw_files=False, verbose=False):
@@ -218,17 +243,17 @@ class NCARArray(object):
 
         :param variables: list: list of variables to retrieve from data; required
         :param init_dates: datetime list or tuple: date or datetime objects of model initialization; may be 'all', in
-        which case, all the init dates in the object's dataset_init_dates attribute are used (these are set when
-        running self.retrieve())
+            which case, all the init dates in the object's dataset_init_dates attribute are used (these are set when
+            running self.retrieve())
         :param forecast_hours: int or list or tuple: forecast hours to load from each init_date; may be 'all', using
-        the object's _forecast_hour_coord attribute
+            the object's _forecast_hour_coord attribute
         :param members: int or list or tuple: IDs (1--10) of ensemble members to load; may be 'all', using the object's
-        _member_coord attribute
+            _member_coord attribute
         :param use_ncar_netcdf: bool: if True, reads data from netCDF files
-        :param write_into_existing: bool: if True, checks for existing files and appends if they exists. If False,
-        overwrites any existing files.
+        :param write_into_existing: bool: if True, checks for existing files and appends if they exist. If False,
+            overwrites any existing files.
         :param delete_raw_files: bool: if True, deletes the original data files from which the processed versions were
-        made
+            made
         :param verbose: bool: include progress print statements
         :return:
         """
@@ -238,16 +263,18 @@ class NCARArray(object):
         if not(isinstance(init_dates, list) or isinstance(init_dates, tuple)):
             init_dates = [init_dates]
         if forecast_hours == 'all':
-            forecast_hours = self._forecast_hour_coord
+            forecast_hours = [f for f in self._forecast_hour_coord]
         elif not(isinstance(forecast_hours, list) or isinstance(forecast_hours, tuple)):
             forecast_hours = [forecast_hours]
         if members == 'all':
-            members = self._member_coord
+            members = [m for m in self._member_coord]
         elif not(isinstance(members, list) or isinstance(members, tuple)):
             members = [members]
         if len(variables) == 0:
             print('NCARArray.write: no variables specified; will do nothing.')
             return
+        forecast_hour_coord = [f for f in self._forecast_hour_coord]
+        member_coord = [m for m in self._member_coord]
 
         # Define some data reading functions that also write to the output
         def read_write_diags(file_name):
@@ -261,7 +288,7 @@ class NCARArray(object):
             if verbose:
                 print('  Reading')
             member_index = self._member_coord.index(member)
-            time_index = self._forecast_hour_coord.index(forecast_hour)
+            time_index = forecast_hour_coord.index(forecast_hour)
             diags_file = nc.Dataset(file_name, 'r')
             for var, variable in diags_file.variables.items():
                 if var in variables:
@@ -333,8 +360,8 @@ class NCARArray(object):
                 table = grib2_table
             else:
                 table = grib1_table
-            member_index = self._member_coord.index(member)
-            time_index = self._forecast_hour_coord.index(forecast_hour)
+            member_index = member_coord.index(member)
+            time_index = forecast_hour_coord.index(forecast_hour)
             grib_data = pygrib.open(file_name)
             if verbose:
                 print('Variables to fetch: %s' % (variables,))
@@ -360,7 +387,7 @@ class NCARArray(object):
                         print('* Warning: grib table variable %s not in file %s' % (var, file_name))
                         pass
                     except BaseException as e:
-                        print("* Warning: failed to write %s to netCDF file ('%s')" % e)
+                        print("* Warning: failed to write %s to netCDF file ('%s')" % (var, str(e)))
             grib_data.close()
             return grib_dict
 
@@ -453,20 +480,25 @@ class NCARArray(object):
 
             nc_fid.close()
 
-    def load(self, **dataset_kwargs):
+    def load(self, concat_dim='init_date', **dataset_kwargs):
         """
         Load an xarray multi-file Dataset for the processed files with initialization dates in self.dataset_init_dates.
         Once loaded, this Dataset is accessible by self.Dataset.
+
+        :param concat_dim: passed to xarray.open_mfdataset()
         :param dataset_kwargs: kwargs passed to xarray.open_mfdataset()
         :return:
         """
         nc_file_dir = '%s/processed' % self._root_directory
+        if not self.dataset_init_dates:
+            raise ValueError("no ensemble initialization dates specified for loading using 'set_init_dates'")
         nc_files = ['%s/%s.nc' % (nc_file_dir, date_to_file_date(d)) for d in self.dataset_init_dates]
-        self.Dataset = xr.open_mfdataset(nc_files, **dataset_kwargs)
+        self.Dataset = xr.open_mfdataset(nc_files, concat_dim=concat_dim, **dataset_kwargs)
 
     def field(self, variable, init_date, forecast_hour, member):
         """
         Shortcut method to return a 2-D numpy array from the data loaded in an NCARArray.
+
         :param variable: str: variable to retrieve
         :param init_date: datetime: model initialization date
         :param forecast_hour: int: forecast hour
@@ -481,6 +513,7 @@ class NCARArray(object):
     def close(self):
         """
         Close an opened Dataset on self.
+
         :return:
         """
         if self.Dataset is not None:
@@ -530,14 +563,15 @@ class NCARArray(object):
     def plot(self, variable, init_date, forecast_hour, member, **plot_basemap_kwargs):
         """
         Wrapper to plot a specified field from an NCAR object.
+
         :param ncar_obj: data_tools.NCAR: NCAR object containing data
         :param variable: str: variable to plot
         :param init_date: datetime: datetime of run initialization
         :param forecast_hour: int: forecast hour to plot
         :param member: int: member number to plot
         :param plot_basemap_kwargs: kwargs passed to the plot.plot_functions.plot_basemap function (see the doc for
-        plot_basemap for more information on options for Basemap plot)
-        :return: pyplot Figure object
+            plot_basemap for more information on options for Basemap plot)
+        :return: matplotlib Figure object
         """
         from ..plot import plot_basemap
         print('NCARArray plot: plot of %s at %s (f%03d, member %d)' % (variable, init_date, forecast_hour, member))

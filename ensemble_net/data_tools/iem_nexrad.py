@@ -71,14 +71,15 @@ class IEMRadar(object):
         """
         Initialize an instance of the IEMRadar object to retrieve, process, and load radar composites from the Iowa
         Environmental Mesonet.
+
         :param file_name: str: local path to a file containing the data desired. If the intention is to retrieve and
-        process data, then the file need not exist. Data in this file are loaded by the self.load() method, so loading
-        will fail if no file_name is provided.
+            process data, then the file need not exist. Data in this file are loaded by the self.load() method, so
+            loading will fail if no file_name is provided.
         :param composite_type: str: type of NEXRAD composite product, 'n0r' or 'n0q'. 'n0q' is more modern and
-        recommended over the soon-to-be-retired 'n0r'.
+            recommended over the soon-to-be-retired 'n0r'.
         :param root_directory: str: source root directory for where radar files are downloaded.
         :param use_source_netcdf: bool: if True (currently must be True to write and load files), then uses IEM's
-        raster2netcdf to retrieve netCDF files instead of raster images.
+            raster2netcdf to retrieve netCDF files instead of raster images.
         """
         self.file_name = file_name
         if root_directory is None:
@@ -135,9 +136,23 @@ class IEMRadar(object):
         except KeyError:
             return
 
+    def closest_lat_lon(self, lat, lon):
+        """
+        Find the grid-point index of the closest point to the specified latitude and longitude values in loaded
+        NCARArray data.
+        :param lat: float or int: latitude in degrees
+        :param lon: float or int: longitude in degrees
+        :return:
+        """
+        if lon < 0.:
+            lon += 360.
+        distance = (self.lat - lat) ** 2 + (self.lon - lon) ** 2
+        return np.unravel_index(np.argmin(distance, axis=None), distance.shape)
+
     def retrieve(self, date_times, replace_existing=False, verbose=True):
         """
         Retrieve the appropriate remote files for the specified iterable of date_times.
+
         :param date_times: iterable: list of datetime objects corresponding to radar product times to retrieve
         :param replace_existing: bool: if True, overwrites any existing local files
         :param verbose: bool: print progress statements
@@ -165,13 +180,19 @@ class IEMRadar(object):
                         fd.write(chunk)
 
     def write(self, date_times, overwrite_existing=False, verbose=True):
+        """
+        Loads radar data from the raw files and writes them to a processed, single file.
 
+        :param date_times: iter: datetimes to process
+        :param overwrite_existing: bool: if True, overwrites an existing file; otherwise, raises an error if the file
+            exists.
+        :param verbose: bool: extra print statements
+        :return:
+        """
         self._time_coord = [int((d - datetime(1970, 1, 1)).total_seconds()) for d in date_times]
-        discard_points = False
         if self._composite_type == 'n0q' and min(date_times) < n0q_new_start_date < max(date_times):
             print('Warning: some requested dates are before the new resolution changes from %s'
                   'while others are after; will discard 200 points on east and south edges.' % n0q_new_start_date)
-            discard_points = True
 
         if self._composite_type == 'n0r':
             ny, nx = n0r_dims
@@ -197,7 +218,7 @@ class IEMRadar(object):
         nc_fid.createDimension('lon', nx)
 
         # Create unchanging time variable
-        nc_var = nc_fid.createVariable('time', np.int32, 'time', zlib=True)
+        nc_var = nc_fid.createVariable('time', np.int64, 'time', zlib=True)
         nc_var.setncatts({
             'long_name': 'Time',
             'units': 'seconds since 1970-01-01 00:00'
@@ -247,6 +268,7 @@ class IEMRadar(object):
         """
         Load an xarray Dataset for the initialization dates in self.dataset_init_dates. Once loaded, this
         Dataset is accessible by self.Dataset.
+
         :param dataset_kwargs: kwargs passed to xarray.open_mfdataset()
         :return:
         """
@@ -255,6 +277,7 @@ class IEMRadar(object):
     def close(self):
         """
         Close an opened Dataset on self.
+
         :return:
         """
         if self.Dataset is not None:

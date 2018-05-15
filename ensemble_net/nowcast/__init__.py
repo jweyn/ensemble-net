@@ -4,4 +4,4 @@
 # See the file LICENSE for your rights.
 #
 
-import preprocessing
+from . import preprocessing
