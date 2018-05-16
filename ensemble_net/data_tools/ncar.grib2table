@@ -2,8 +2,8 @@
 2:REFC:196:Maximum/Composite radar reflectivity:dBZ (instant):lambert:unknown:level 0 10
 3:VIS:0:Visibility:m (instant):lambert:surface:level 0
 4:MAXUVV:220:Hourly Max Upward Vertical Velocity:m s**-1 (instant):lambert:pressureFromGroundLayer:levels 40000-100000 Pa
-5:REFD1:4:Reflectivity 1 km AGL:dBZ (instant):lambert:heightAboveGround:level 4000 m
-6:REFD4:4:Reflectivity 4 km AGL:dBZ (instant):lambert:heightAboveGround:level 1000 m
+5:REFD1:4:Reflectivity 1 km AGL:dBZ (instant):lambert:heightAboveGround:level 1000 m
+6:REFD4:4:Reflectivity 4 km AGL:dBZ (instant):lambert:heightAboveGround:level 4000 m
 7:UPHL:197:Updraft Helicity:m**2 s**-2 (instant):lambert:heightAboveGroundLayer:levels 2000-5000 m
 8:LTG1:2:LTG1 Maximum Lightning Threat 1:km**-2 5min**-1 (instant):lambert:unknown:level 0 10
 9:LTG2:3:LTG2 Maximum Lightning Threat 1:km**-2 5min**-1 (instant):lambert:unknown:level 0 10
@@ -12,7 +12,7 @@
 12:DPT2:0:2 metre dewpoint temperature:K (instant):lambert:heightAboveGround:level 2 m
 13:UGRD:2:10 metre U wind component:m s**-1 (instant):lambert:heightAboveGround:level 10 m
 14:VGRD:3:10 metre V wind component:m s**-1 (instant):lambert:heightAboveGround:level 10 m
-15:WIND:1:Hourly Max 10 metre wind speed:m s**-1 (max):lambert:heightAboveGround:level 10 m
+15:WGST:1:Hourly Max 10 metre wind speed:m s**-1 (max):lambert:heightAboveGround:level 10 m
 16:ACPC:8:Total Precipitation:kg m**-2 (accum):lambert:surface:level 0
 17:WEASD:13:Water equivalent of accumulated snow depth:kg m**-2 (accum):lambert:surface:level 0
 18:SNOL:15:Hourly accum Large scale snow:kg m**-2 (accum):lambert:surface:level 0

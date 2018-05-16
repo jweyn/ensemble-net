@@ -31,12 +31,12 @@ pd_date_range = pd.date_range(start=start_init_date, end=end_init_date, freq='D'
 init_dates = list(pd_date_range.to_pydatetime())
 forecast_hours = list(range(0, 28))
 members = list(range(1, 11))
-variables = ('TMP2', 'DPT2', 'MSLP', 'UGRD', 'VGRD')
+variables = ('TMP2', 'UGRD', 'VGRD')
 
 ensemble = NCARArray(root_directory='/Users/jweyn/Data/NCAR_Ensemble')
 ensemble.set_init_dates(init_dates)
-ensemble.retrieve(init_dates, forecast_hours, members, get_ncar_netcdf=False, verbose=True)
-ensemble.write(variables, forecast_hours=forecast_hours, use_ncar_netcdf=False, verbose=True)
+# ensemble.retrieve(init_dates, forecast_hours, members, get_ncar_netcdf=False, verbose=True)
+ensemble.write(variables, forecast_hours=forecast_hours, use_ncar_netcdf=False, verbose=True, write_into_existing=False)
 ensemble.load(coords=[], autoclose=True,
               chunks={'member': 1, 'time': 24, 'south_north': 100, 'west_east': 100})
 
@@ -78,15 +78,20 @@ layers = (
         'activation': 'relu',
         'input_shape': input_shape
     }),
-    ('MaxPooling2D', None, {
-        'pooling_size': (2, 2)
+    ('MaxPooling2D', (), {
+        'pool_size': (2, 2)
     }),
-    ('Dropout', 0.25, {}),
-    ('Flatten', None, {}),
-    ('Dense', num_outputs, {
+    ('Dropout', (0.25,), {}),
+    ('Flatten', (), {}),
+    # ('Dense', (32,), {
+    #     'activation': 'relu',
+    #     'input_shape': input_shape
+    # }),
+    ('Flatten', (), {}),
+    ('Dense', (num_outputs,), {
         'activation': 'linear'
     })
 )
 
 nowcast.build_model(layers=layers, loss='mse', optimizer='adam', metrics=['mae'])
-nowcast.fit(predictors, targets, batch_size=32, epochs=20, verbose=1)
+nowcast.fit(predictors, targets, batch_size=32, epochs=10, verbose=1)

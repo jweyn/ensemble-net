@@ -11,15 +11,15 @@ High-level API for building a nowcasting model based on Keras.
 import keras
 import keras.layers
 from keras.models import Sequential
-from sklearn.preprocessing import StandardScaler
-from ..util import get_object
+from ..util import get_from_class
 
 
 class NowCast(object):
     """
     Class containing a nowcasting model and other processing tools for the input data.
     """
-    def __init__(self):
+    def __init__(self, scaler_type='MinMaxScaler'):
+        self.scaler_type = scaler_type
         self.scaler = None
         self.model = None
 
@@ -46,14 +46,23 @@ class NowCast(object):
                 raise TypeError("the 'args' element of layer %d must be a tuple" % l)
             if type(layer[2]) is not dict:
                 raise TypeError("the 'kwargs' element of layer %d must be a dict" % l)
-            layer_class = get_object('keras.layers.%s' % layer[0])
+            layer_class = get_from_class('keras.layers', layer[0])
             self.model.add(layer_class(*layer[1], **layer[2]))
 
         self.model.compile(**compile_kwargs)
 
-    def build_scaler(self, X, y=None, **kwargs):
-        self.scaler = StandardScaler(**kwargs)
-        self.scaler.fit(X, y=y)
+    def scaler_fit(self, X, **kwargs):
+        scaler_class = get_from_class('sklearn.preprocessing', self.scaler_type)
+        self.scaler = scaler_class(**kwargs)
+        X_shape = X.shape
+        X = X.reshape((X_shape[0], -1))
+        self.scaler.fit(X)
+
+    def scaler_transform(self, X):
+        X_shape = X.shape
+        X = X.reshape((X_shape[0], -1))
+        X_transform = self.scaler.transform(X)
+        return X_transform.reshape(X_shape)
 
     def fit(self, predictors, targets, **kwargs):
         """
@@ -64,19 +73,19 @@ class NowCast(object):
         :param kwargs: passed to the Keras 'fit' method
         :return:
         """
-        self.build_scaler(predictors)
-        predictors_scaled = self.scaler.transform(predictors)
+        self.scaler_fit(predictors)
+        predictors_scaled = self.scaler_transform(predictors)
         self.model.fit(predictors_scaled, targets, **kwargs)
 
     def predict(self, predictors, **kwargs):
         """
-        Make a prediction with the NowCast model. Also performs feature scaling.
+        Make a prediction with the NowCast model. Also performs input feature scaling.
 
         :param predictors: ndarray: predictor data
         :param kwargs: passed to Keras 'predict' method
         :return:
         """
-        predictors_scaled = self.scaler.transform(predictors)
+        predictors_scaled = self.scaler_transform(predictors)
         predicted = self.model.predict(predictors_scaled, **kwargs)
         return predicted
 

@@ -7,7 +7,7 @@
 7:DPT2:17:2 metre dewpoint temperature:K (instant):lambert:heightAboveGround:level 2
 8:UGRD:33:10 metre U wind component:m s**-1 (instant):lambert:heightAboveGround:level 10
 9:VGRD:34:10 metre V wind component:m s**-1 (instant):lambert:heightAboveGround:level 10
-10:WIND:229:Hourly Max 10 metre wind speed:m s**-1 (max):lambert:heightAboveGround:level 10
+10:WGST:229:Hourly Max 10 metre wind speed:m s**-1 (max):lambert:heightAboveGround:level 10
 11:ACPC:61:Total Precipitation:kg m**-2 (accum):lambert:surface:level 0
 12:CSNOW:143:Categorical snow:(Code table 4.222) (instant):lambert:surface:level 0
 13:CICEP:142:Categorical ice pellets:(Code table 4.222) (instant):lambert:surface:level 0

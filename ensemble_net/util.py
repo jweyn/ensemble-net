@@ -45,6 +45,20 @@ def get_object(module_class):
     return mod
 
 
+def get_from_class(module_name, class_name):
+    """
+    Given a module name and a class name, return an object corresponding to the class retrieved as in
+    `from module_class import class_name`.
+
+    :param module_name: str: name of module (may have . attributes)
+    :param class_name: str: name of class
+    :return: object pointer to class
+    """
+    mod = __import__(module_name, fromlist=[class_name])
+    class_obj = getattr(mod, class_name)
+    return class_obj
+
+
 # ==================================================================================================================== #
 # Type conversion functions
 # ==================================================================================================================== #

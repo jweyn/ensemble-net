@@ -57,6 +57,7 @@ data_grib1to2_date = datetime(2015, 9, 1)
 dir_path = os.path.dirname(os.path.realpath(__file__))
 grib1_table = np.genfromtxt('%s/ncar.grib1table' % dir_path, dtype='str', delimiter=':')
 grib2_table = np.genfromtxt('%s/ncar.grib2table' % dir_path, dtype='str', delimiter=':')
+grib2_table2 = np.genfromtxt('%s/ncar.grib2table2' % dir_path, dtype='str', delimiter=':')
 
 
 # ==================================================================================================================== #
@@ -345,6 +346,16 @@ class NCARArray(object):
             nc_fid.variables['lon'][:] = lon
             grib_data.close()
 
+        def get_grib_length(grib):
+            grib.rewind()
+            line = ''
+            grib_lines = []
+            while line != 'None' and line is not None:
+                line = grib.readline()
+                grib_lines.append(line)
+            grib.rewind()
+            return len(grib_lines)
+
         def read_write_grib(file_name, is_grib2):
             grib_dict = {}
             exists, exists_file_name = _check_exists(file_name, path=True)
@@ -356,13 +367,17 @@ class NCARArray(object):
             _unzip(exists_file_name)
             if verbose:
                 print('  Reading')
-            if is_grib2:
-                table = grib2_table
-            else:
-                table = grib1_table
             member_index = member_coord.index(member)
             time_index = forecast_hour_coord.index(forecast_hour)
             grib_data = pygrib.open(file_name)
+            if is_grib2:
+                # Some newer grib files use a different table with a lot more data
+                if get_grib_length(grib_data) > 100:
+                    table = grib2_table2
+                else:
+                    table = grib2_table
+            else:
+                table = grib1_table
             if verbose:
                 print('Variables to fetch: %s' % (variables,))
             for row in range(table.shape[0]):
@@ -381,8 +396,9 @@ class NCARArray(object):
                     try:
                         if verbose:
                             print('Writing %s' % var)
-                        nc_fid.variables[var][member_index, time_index, ...] = np.array(grib_data[index].values,
-                                                                                        dtype=np.float32)
+                        data = np.array(grib_data[index].values, dtype=np.float32)
+                        data[data > 1.e30] = np.nan
+                        nc_fid.variables[var][member_index, time_index, ...] = data
                     except OSError:  # missing index gives an OS read error
                         print('* Warning: grib table variable %s not in file %s' % (var, file_name))
                         pass
