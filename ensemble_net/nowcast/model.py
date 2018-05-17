@@ -42,8 +42,12 @@ class NowCast(object):
                 raise TypeError("each element of 'layers' must be a tuple")
             if len(layer) != 3:
                 raise ValueError("each layer must be specified by three elements (name, args, kwargs)")
+            if layer[1] is None:
+                layer[1] = ()
             if type(layer[1]) is not tuple:
                 raise TypeError("the 'args' element of layer %d must be a tuple" % l)
+            if layer[2] is None:
+                layer[2] = {}
             if type(layer[2]) is not dict:
                 raise TypeError("the 'kwargs' element of layer %d must be a dict" % l)
             layer_class = get_from_class('keras.layers', layer[0])

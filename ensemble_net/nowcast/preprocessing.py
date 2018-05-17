@@ -124,10 +124,6 @@ def train_data_from_NCAR(ncar, xlim, ylim, variables=(), latlon=False, lead_time
                 ind = grand_index_list[sample]
                 targets[sample, member, :, :, v] = np.squeeze(new_ds[variable].isel(init_date=ind[0], member=member,
                                                                                     time=ind[1]).values)
-                # predictors[sample, member, :, :, v, :] = ((ncar.Dataset.variables[variable]
-                #                                            [ind[0], member, ind[2], y1:y2, x1:x2].values)
-                #                                            .reshape((train_time_steps, num_y, num_x))
-                #                                            .transpose((1, 2, 0)))
                 predictors[sample, member, :, :, v, :] = ((new_ds[variable].isel(init_date=ind[0], member=member,
                                                                                  time=ind[2]).values)
                                                            .reshape((train_time_steps, num_y, num_x))
@@ -150,6 +146,23 @@ def train_data_from_NCAR(ncar, xlim, ylim, variables=(), latlon=False, lead_time
     return predictors, targets
 
 
+def train_data_to_pickle(pickle_file, predictors, targets):
+    """
+    Writes predictor and target arrays to a pickle file.
+
+    :param pickle_file: str: file path and name
+    :param predictors: ndarray
+    :param targets: ndarray
+    :return:
+    """
+    save_vars = {
+        'predictors': predictors,
+        'targets': targets
+    }
+    with open(pickle_file, 'wb') as handle:
+        pickle.dump(save_vars, handle, pickle.HIGHEST_PROTOCOL)
+
+
 def train_data_from_pickle(pickle_file,):
     """
     Unpickles a pickle file and returns predictor and target arrays.
@@ -166,8 +179,8 @@ def train_data_from_pickle(pickle_file,):
 def reshape_keras_inputs(predictors):
     """
     Accepts ndarrays of predictor data and reshapes it to the shape expected by the Keras backend. The array provided
-    here should be of shape num_samples*num_y*num_x*any_other_dims, and will be reshaped to num_samples by either other
-    channels first or y, x first.
+    here should be of shape [num_samples, num_y, num_x, ...], and will be reshaped to [num_samples, either other
+    channels first or (y, x) first].
 
     :param predictors: ndarray of predictor data
     :return: reshaped predictors, along with an input_shape parameter to pass to Keras layers
@@ -183,4 +196,52 @@ def reshape_keras_inputs(predictors):
     if K.image_data_format() == 'channels_first':
         predictors = predictors.transpose((0, 3, 1, 2))
     return predictors, predictors.shape[1:]
+
+
+def reshape_keras_targets(targets, omit_edge_points=0):
+    """
+    Reshapes target data in the shape [num_samples, num_y, num_x, ...] into [num_samples, num_outputs] and returns
+    the original shape for future use and the number of outputs. The option omit_edge_points allows trimming of the
+    boundaries symmetrically in y and x.
+
+    :param targets: ndarray, shape [num_samples, num_y, num_x, ...]: target data
+    :param omit_edge_points: int >=0: number of edge grid points to omit symmetrically in the y and x dimensions
+    :return: targets (ndarray), target_shape (tuple of shape for future reshaping), num_outputs (number of predicted
+        features)
+    """
+    omit_edge_points = int(omit_edge_points)
+    if omit_edge_points < 0:
+        raise ValueError("'omit_edge_points' must be >= 0")
+    targets = targets[:, omit_edge_points:-1*omit_edge_points, omit_edge_points:-1*omit_edge_points, ...]
+    target_shape = targets.shape
+    targets = targets.reshape(target_shape[0], -1)
+    num_outputs = targets.shape[1]
+    return targets, target_shape, num_outputs
+
+
+def delete_nan_samples(predictors, targets, large_fill_value=True):
+    """
+    Delete any samples from the predictor and target numpy arrays and return new, reduced versions.
+
+    :param predictors: ndarray, shape [num_samples,...]: predictor data
+    :param targets: ndarray, shape [num_samples,...]: target data
+    :param large_fill_value: bool: if True, treats very large values (> 1e30) as NaNs
+    :return: predictors, targets: ndarrays with samples removed
+    """
+    if large_fill_value:
+        predictors[(predictors > 1.e30) | (predictors < -1.e30)] = np.nan
+        targets[(targets > 1.e30) | (targets < -1.e30)] = np.nan
+    p_shape = predictors.shape
+    t_shape = targets.shape
+    predictors = predictors.reshape((p_shape[0], -1))
+    targets = targets.reshape((t_shape[0], -1))
+    p_ind = list(np.where(np.isnan(predictors))[0])
+    t_ind = list(np.where(np.isnan(targets))[0])
+    bad_ind = list(set(p_ind + t_ind))
+    predictors = np.delete(predictors, bad_ind, axis=0)
+    targets = np.delete(targets, bad_ind, axis=0)
+    new_p_shape = (predictors.shape[0],) + p_shape[1:]
+    new_t_shape = (targets.shape[0],) + t_shape[1:]
+    return predictors.reshape(new_p_shape), targets.reshape(new_t_shape)
+
 
