@@ -97,7 +97,7 @@ class NowCast(object):
         predicted = self.model.predict(predictors_scaled, **kwargs)
         return predicted
 
-    def evaluate(self, predictors, **kwargs):
+    def evaluate(self, predictors, targets, **kwargs):
         """
         Run the Keras model's 'evaluate' method, with input feature scaling.
 
@@ -106,5 +106,5 @@ class NowCast(object):
         :return:
         """
         predictors_scaled = self.scaler_transform(predictors)
-        score = self.model.evaluate(predictors_scaled, **kwargs)
+        score = self.model.evaluate(predictors_scaled, targets, **kwargs)
         return score
