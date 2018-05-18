@@ -79,6 +79,10 @@ class NowCast(object):
         """
         self.scaler_fit(predictors)
         predictors_scaled = self.scaler_transform(predictors)
+        # Need to scale the validation data if it is given
+        if 'validation_data' in kwargs:
+            predictors_test_scaled = self.scaler_transform(kwargs['validation_data'][0])
+            kwargs['validation_data'] = (predictors_test_scaled, kwargs['validation_data'][1])
         self.model.fit(predictors_scaled, targets, **kwargs)
 
     def predict(self, predictors, **kwargs):
@@ -93,3 +97,14 @@ class NowCast(object):
         predicted = self.model.predict(predictors_scaled, **kwargs)
         return predicted
 
+    def evaluate(self, predictors, **kwargs):
+        """
+        Run the Keras model's 'evaluate' method, with input feature scaling.
+
+        :param predictors: ndarray: predictor data
+        :param kwargs: passed to Keras 'evaluate' method
+        :return:
+        """
+        predictors_scaled = self.scaler_transform(predictors)
+        score = self.model.evaluate(predictors_scaled, **kwargs)
+        return score

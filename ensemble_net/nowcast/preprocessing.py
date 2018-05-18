@@ -206,8 +206,8 @@ def reshape_keras_targets(targets, omit_edge_points=0):
 
     :param targets: ndarray, shape [num_samples, num_y, num_x, ...]: target data
     :param omit_edge_points: int >=0: number of edge grid points to omit symmetrically in the y and x dimensions
-    :return: targets (ndarray), target_shape (tuple of shape for future reshaping), num_outputs (number of predicted
-        features)
+    :return: targets (ndarray), target_shape (tuple of shape, excluding num_samples, for future reshaping), num_outputs
+        (number of predicted features)
     """
     omit_edge_points = int(omit_edge_points)
     if omit_edge_points < 0:
@@ -216,7 +216,7 @@ def reshape_keras_targets(targets, omit_edge_points=0):
     target_shape = targets.shape
     targets = targets.reshape(target_shape[0], -1)
     num_outputs = targets.shape[1]
-    return targets, target_shape, num_outputs
+    return targets, target_shape[1:], num_outputs
 
 
 def delete_nan_samples(predictors, targets, large_fill_value=True):
