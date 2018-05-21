@@ -144,10 +144,7 @@ class IEMRadar(object):
         :param lon: float or int: longitude in degrees
         :return:
         """
-        if lon < 0.:
-            lon += 360.
-        distance = (self.lat - lat) ** 2 + (self.lon - lon) ** 2
-        return np.unravel_index(np.argmin(distance, axis=None), distance.shape)
+        return np.argmin(np.abs(self.lat - lat)), np.argmin(np.abs(self.lon - lon))
 
     def retrieve(self, date_times, replace_existing=False, verbose=True):
         """
