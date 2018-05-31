@@ -11,7 +11,7 @@ Test the nowcast module.
 
 import pickle
 import time
-from ensemble_net.data_tools import NCARArray, IEMRadar
+from ensemble_net.data_tools import NCARArray
 from ensemble_net.nowcast import preprocessing, NowCast
 from sklearn.model_selection import train_test_split
 import pandas as pd
@@ -72,12 +72,12 @@ p_train, p_test, t_train, t_test = train_test_split(predictors, targets, test_si
 # Build a NowCast model
 nowcast = NowCast()
 layers = (
-    ('Conv2D', (128,), {
+    ('Conv2D', (64,), {
         'kernel_size': (3, 3),
         'activation': 'relu',
         'input_shape': input_shape
     }),
-    ('Conv2D', (128,), {
+    ('Conv2D', (64,), {
         'kernel_size': (3, 3),
         'activation': 'relu'
     }),
@@ -102,7 +102,7 @@ start_time = time.time()
 nowcast.fit(p_train, t_train, batch_size=128, epochs=10, verbose=1, validation_data=(p_test, t_test))
 end_time = time.time()
 
-score = nowcast.model.evaluate(p_test, t_test, verbose=0)
+score = nowcast.evaluate(p_test, t_test, verbose=0)
 print("\nTrain time -- %s seconds --" % (end_time - start_time))
 print('Test loss:', score[0])
-print('Test accuracy:', score[1])
+print('Test mean absolute error:', score[1])
