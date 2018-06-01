@@ -55,9 +55,8 @@ data_grib1to2_date = datetime(2015, 9, 1)
 
 # Parameter tables for GRIB data. Should be included in repository.
 dir_path = os.path.dirname(os.path.realpath(__file__))
-grib1_table = np.genfromtxt('%s/ncar.grib1table' % dir_path, dtype='str', delimiter=':')
-grib2_table = np.genfromtxt('%s/ncar.grib2table' % dir_path, dtype='str', delimiter=':')
-grib2_table2 = np.genfromtxt('%s/ncar.grib2table2' % dir_path, dtype='str', delimiter=':')
+grib1_table = np.genfromtxt('%s/ncar_grib1_table.csv' % dir_path, dtype='str', delimiter=',')
+grib2_table = np.genfromtxt('%s/ncar_grib2_table.csv' % dir_path, dtype='str', delimiter=',')
 
 
 # ==================================================================================================================== #
@@ -94,6 +93,7 @@ class NCARArray(object):
         self._ny = 985
         self._nx = 1580
         self.Dataset = None
+        self._has_single_file = False
 
     @property
     def lat(self):
@@ -371,36 +371,43 @@ class NCARArray(object):
             time_index = forecast_hour_coord.index(forecast_hour)
             grib_data = pygrib.open(file_name)
             if is_grib2:
-                # Some newer grib files use a different table with a lot more data
-                if get_grib_length(grib_data) > 100:
-                    table = grib2_table2
-                else:
-                    table = grib2_table
+                table = grib2_table
+                grib_index = pygrib.index(file_name, 'parameterCategory', 'parameterNumber', 'level')
             else:
                 table = grib1_table
+                grib_index = pygrib.index(file_name, 'indicatorOfParameter', 'level')
             if verbose:
                 print('Variables to fetch: %s' % (variables,))
             for row in range(table.shape[0]):
-                var = table[row, 1]
+                var = table[row, 0]
                 if var in variables:
-                    index = row + 1
                     if var not in nc_fid.variables.keys():
                         if verbose:
                             print('Creating variable %s' % var)
                         nc_var = nc_fid.createVariable(var, np.float32, ('member', 'time', 'south_north', 'west_east'),
                                                        zlib=True)
                         nc_var.setncatts({
-                            'long_name': table[row, 3],
-                            'units': table[row, 4]
+                            'long_name': table[row, 5],
+                            'units': table[row, 6]
                         })
                     try:
                         if verbose:
                             print('Writing %s' % var)
-                        data = np.array(grib_data[index].values, dtype=np.float32)
+                        if is_grib2:
+                            grib_list = grib_index.select(parameterCategory=int(table[row, 1]),
+                                                          parameterNumber=int(table[row, 2]),
+                                                          level=int(table[row, 3]))
+                        else:
+                            grib_list = grib_index.select(indicatorOfParameter=int(table[row, 1]),
+                                                          level=int(table[row, 2]))
+                        if verbose and len(grib_list) > 1:
+                            print('* Warning: found multiple matches for %s; using the first (%s)' %
+                                  (var, grib_list[0]))
+                        data = np.array(grib_list[0].values, dtype=np.float32)
                         data[data > 1.e30] = np.nan
                         nc_fid.variables[var][member_index, time_index, ...] = data
-                    except OSError:  # missing index gives an OS read error
-                        print('* Warning: grib table variable %s not in file %s' % (var, file_name))
+                    except (ValueError, OSError):  # missing index gives an OS read error
+                        print('* Warning: grib variable %s not found in file %s' % (var, file_name))
                         pass
                     except BaseException as e:
                         print("* Warning: failed to write %s to netCDF file ('%s')" % (var, str(e)))
@@ -509,6 +516,10 @@ class NCARArray(object):
         if not self.dataset_init_dates:
             raise ValueError("no ensemble initialization dates specified for loading using 'set_init_dates'")
         nc_files = ['%s/%s.nc' % (nc_file_dir, date_to_file_date(d)) for d in self.dataset_init_dates]
+        if len(nc_files) == 1:
+            self._has_single_file = True
+        else:
+            self._has_single_file = False
         self.Dataset = xr.open_mfdataset(nc_files, concat_dim=concat_dim, **dataset_kwargs)
 
     def field(self, variable, init_date, forecast_hour, member):
@@ -524,6 +535,8 @@ class NCARArray(object):
         init_date_index = self.dataset_init_dates.index(init_date)
         time_index = self._forecast_hour_coord.index(forecast_hour)
         member_index = self._member_coord.index(member)
+        if self._has_single_file:
+            return self.Dataset.variables[variable][member_index, time_index, ...].values
         return self.Dataset.variables[variable][init_date_index, member_index, time_index, ...].values
 
     def close(self):
