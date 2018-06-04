@@ -1,4 +1,4 @@
-# variable,category,parameter,levelValue,level (grib code),longName,units
+# variable,parameterCategory,parameterNumber,level,typeOfLevel (grib code),longName,units
 MSLP,3,0,0,mean sea level  (101),Mean Sea Level Pressure,Pa
 REFC,16,196,0,entire atmosphere (10),Composite Reflectivity **,dbz
 VIS,19,0,0,surface (1),Visibility,m

@@ -375,7 +375,7 @@ class NCARArray(object):
                 grib_index = pygrib.index(file_name, 'parameterCategory', 'parameterNumber', 'level')
             else:
                 table = grib1_table
-                grib_index = pygrib.index(file_name, 'indicatorOfParameter', 'level')
+                grib_index = pygrib.index(file_name, 'indicatorOfParameter', 'indicatorOfTypeOfLevel', 'level')
             if verbose:
                 print('Variables to fetch: %s' % (variables,))
             for row in range(table.shape[0]):
@@ -399,7 +399,8 @@ class NCARArray(object):
                                                           level=int(table[row, 3]))
                         else:
                             grib_list = grib_index.select(indicatorOfParameter=int(table[row, 1]),
-                                                          level=int(table[row, 2]))
+                                                          indicatorOfTypeOfLevel=str(table[row, 2]),
+                                                          level=int(table[row, 3]))
                         if verbose and len(grib_list) > 1:
                             print('* Warning: found multiple matches for %s; using the first (%s)' %
                                   (var, grib_list[0]))
