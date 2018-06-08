@@ -23,7 +23,7 @@ from datetime import datetime, timedelta
 lat_0 = 35.
 lat_1 = 36.
 lon_0 = -98.
-lon_1 = -97
+lon_1 = -97.
 
 
 # Create an NCAR Ensemble object to load data from
@@ -77,10 +77,10 @@ layers = (
         'activation': 'relu',
         'input_shape': input_shape
     }),
-    ('Conv2D', (64,), {
-        'kernel_size': (3, 3),
-        'activation': 'relu'
-    }),
+    # ('Conv2D', (64,), {
+    #     'kernel_size': (3, 3),
+    #     'activation': 'relu'
+    # }),
     # ('MaxPooling2D', (), {
     #     'pool_size': (2, 2)
     # }),

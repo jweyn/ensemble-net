@@ -182,5 +182,5 @@ plot_kwargs = {
 }
 
 radar_array[radar_array <= -20] = np.nan
-plot_basemap(lon_subset_r, lat_subset_r, radar_array, ensemble.basemap, **plot_kwargs)
+plot_basemap(ensemble.basemap, lon_subset_r, lat_subset_r, radar_array, **plot_kwargs)
 plt.show()

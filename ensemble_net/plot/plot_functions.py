@@ -12,7 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def plot_basemap(lon, lat, z, basemap, plot_type='contourf', plot_kwargs={},
+def plot_basemap(basemap, lon, lat, z=None, plot_type='contourf', plot_kwargs={},
                  title=None, colorbar=True, colorbar_label=None, draw_grids=True,
                  save_file=None, save_kwargs={}, width=6, height=4, ):
     """

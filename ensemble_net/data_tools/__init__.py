@@ -15,3 +15,4 @@ Requires:
 
 from .ncar import NCARArray
 from .iem_nexrad import IEMRadar
+from .mesowest import MesoWest

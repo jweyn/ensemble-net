@@ -101,3 +101,23 @@ def date_to_file_date(date):
         return
     if not isinstance(date, str):
         return datetime.strftime(date, '%Y%m%d%H')
+
+
+def meso_date_to_datetime(date_str):
+    """
+    Converts a string date from config formatting %Y%m%d to a datetime object.
+    """
+    if date_str is None:
+        return
+    if isinstance(date_str, str):
+        return datetime.strptime(date_str, '%Y%m%d%H%M')
+
+
+def date_to_meso_date(date):
+    """
+    Converts a string date from config formatting %Y%m%d to a datetime object.
+    """
+    if date is None:
+        return
+    if not isinstance(date, str):
+        return datetime.strftime(date, '%Y%m%d%H%M')

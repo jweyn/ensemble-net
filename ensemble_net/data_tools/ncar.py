@@ -82,16 +82,19 @@ class NCARArray(object):
         self.password = password
         self.raw_files = []
         self.dataset_init_dates = []
+        self.dataset_variables = []
         if root_directory is None:
             self._root_directory = '%s/.ncar' % os.path.expanduser('~')
         else:
             self._root_directory = root_directory
         self.basemap = None
+        # Optionally-modified dimensions for the dataset
+        self.member_coord = list(range(1, 11))
+        self.forecast_hour_coord = list(range(0, 49))
         # Known universal dimension sizes for the dataset
-        self._member_coord = list(range(1, 11))
-        self._forecast_hour_coord = list(range(0, 49))
         self._ny = 985
         self._nx = 1580
+        # Data
         self.Dataset = None
         self._has_single_file = False
 
@@ -136,6 +139,7 @@ class NCARArray(object):
         """
         Find the grid-point index of the closest point to the specified latitude and longitude values in loaded
         NCARArray data.
+
         :param lat: float or int: latitude in degrees
         :param lon: float or int: longitude in degrees
         :return:
@@ -143,6 +147,8 @@ class NCARArray(object):
         if lon < 0.:
             lon += 360.
         distance = (self.lat - lat) ** 2 + (self.lon - lon) ** 2
+        if np.min(distance) > 1.:
+            raise ValueError('no latitude/longitude points within 1 degree of requested lat/lon!')
         return np.unravel_index(np.argmin(distance, axis=None), distance.shape)
 
     def retrieve(self, init_dates, forecast_hours, members, get_ncar_netcdf=False, verbose=False):
@@ -179,13 +185,13 @@ class NCARArray(object):
             init_date_dir = datetime.strftime(init_date, ('%s/' % self._root_directory) + '%Y/%Y%m%d/')
             os.makedirs(init_date_dir, exist_ok=True)
             for member in members:
-                if member not in self._member_coord:
-                    print('* Warning: I am only set up to retrieve members within %s' % self._member_coord)
+                if member not in self.member_coord:
+                    print('* Warning: I am only set up to retrieve members within %s' % self.member_coord)
                     continue
                 for forecast_hour in forecast_hours:
-                    if forecast_hour not in self._forecast_hour_coord:
+                    if forecast_hour not in self.forecast_hour_coord:
                         print('* Warning: I am only set up to retrieve forecast hours within %s' %
-                              self._forecast_hour_coord)
+                              self.forecast_hour_coord)
                         continue
                     # Add netCDF file to listing
                     if get_ncar_netcdf:
@@ -264,18 +270,19 @@ class NCARArray(object):
         if not(isinstance(init_dates, list) or isinstance(init_dates, tuple)):
             init_dates = [init_dates]
         if forecast_hours == 'all':
-            forecast_hours = [f for f in self._forecast_hour_coord]
+            forecast_hours = [f for f in self.forecast_hour_coord]
         elif not(isinstance(forecast_hours, list) or isinstance(forecast_hours, tuple)):
             forecast_hours = [forecast_hours]
         if members == 'all':
-            members = [m for m in self._member_coord]
+            members = [m for m in self.member_coord]
         elif not(isinstance(members, list) or isinstance(members, tuple)):
             members = [members]
         if len(variables) == 0:
             print('NCARArray.write: no variables specified; will do nothing.')
             return
-        forecast_hour_coord = [f for f in self._forecast_hour_coord]
-        member_coord = [m for m in self._member_coord]
+        forecast_hour_coord = [f for f in self.forecast_hour_coord]
+        member_coord = [m for m in self.member_coord]
+        self.dataset_variables = list(variables)
 
         # Define some data reading functions that also write to the output
         def read_write_diags(file_name):
@@ -288,7 +295,7 @@ class NCARArray(object):
             _unzip(exists_file_name)
             if verbose:
                 print('  Reading')
-            member_index = self._member_coord.index(member)
+            member_index = self.member_coord.index(member)
             time_index = forecast_hour_coord.index(forecast_hour)
             diags_file = nc.Dataset(file_name, 'r')
             for var, variable in diags_file.variables.items():
@@ -345,16 +352,6 @@ class NCARArray(object):
             })
             nc_fid.variables['lon'][:] = lon
             grib_data.close()
-
-        def get_grib_length(grib):
-            grib.rewind()
-            line = ''
-            grib_lines = []
-            while line != 'None' and line is not None:
-                line = grib.readline()
-                grib_lines.append(line)
-            grib.rewind()
-            return len(grib_lines)
 
         def read_write_grib(file_name, is_grib2):
             grib_dict = {}
@@ -440,8 +437,8 @@ class NCARArray(object):
                 if verbose:
                     print('Creating coordinate dimensions')
                 nc_fid.description = 'Selected variables from the NCAR ensemble initialized at %s' % init_date
-                nc_fid.createDimension('member', len(self._member_coord))
-                nc_fid.createDimension('time', len(self._forecast_hour_coord))
+                nc_fid.createDimension('member', len(self.member_coord))
+                nc_fid.createDimension('time', len(self.forecast_hour_coord))
                 nc_fid.createDimension('south_north', self._ny)
                 nc_fid.createDimension('west_east', self._nx)
 
@@ -451,7 +448,7 @@ class NCARArray(object):
                     'long_name': 'Ensemble member number identifier',
                     'units': 'N/A'
                 })
-                nc_fid.variables['member'][:] = self._member_coord
+                nc_fid.variables['member'][:] = self.member_coord
 
                 # Create unchanging time variable
                 nc_var = nc_fid.createVariable('time', np.int32, 'time', zlib=True)
@@ -459,17 +456,17 @@ class NCARArray(object):
                     'long_name': 'Time',
                     'units': 'hours since %s' % datetime.strftime(init_date, '%Y-%m-%d %H:%M')
                 })
-                nc_fid.variables['time'][:] = self._forecast_hour_coord
+                nc_fid.variables['time'][:] = self.forecast_hour_coord
 
             # Now go through the member and hour files to add data to the netCDF file
             for member in members:
-                if member not in self._member_coord:
-                    print('* Warning: I am only set up to retrieve members within %s' % self._member_coord)
+                if member not in self.member_coord:
+                    print('* Warning: I am only set up to retrieve members within %s' % self.member_coord)
                     continue
                 for forecast_hour in forecast_hours:
-                    if forecast_hour not in self._forecast_hour_coord:
+                    if forecast_hour not in self.forecast_hour_coord:
                         print('* Warning: I am only set up to retrieve forecast hours within %s' %
-                              self._forecast_hour_coord)
+                              self.forecast_hour_coord)
                         continue
 
                     # Do the GRIB part
@@ -522,6 +519,9 @@ class NCARArray(object):
         else:
             self._has_single_file = False
         self.Dataset = xr.open_mfdataset(nc_files, concat_dim=concat_dim, **dataset_kwargs)
+        self.dataset_variables = list(self.Dataset.variables.keys())
+        if self._has_single_file:
+            self.Dataset = self.Dataset.expand_dims(str(concat_dim))
 
     def field(self, variable, init_date, forecast_hour, member):
         """
@@ -534,10 +534,8 @@ class NCARArray(object):
         :return:
         """
         init_date_index = self.dataset_init_dates.index(init_date)
-        time_index = self._forecast_hour_coord.index(forecast_hour)
-        member_index = self._member_coord.index(member)
-        if self._has_single_file:
-            return self.Dataset.variables[variable][member_index, time_index, ...].values
+        time_index = self.forecast_hour_coord.index(forecast_hour)
+        member_index = self.member_coord.index(member)
         return self.Dataset.variables[variable][init_date_index, member_index, time_index, ...].values
 
     def close(self):
@@ -606,5 +604,5 @@ class NCARArray(object):
         from ..plot import plot_basemap
         print('NCARArray plot: plot of %s at %s (f%03d, member %d)' % (variable, init_date, forecast_hour, member))
         field = self.field(variable, init_date, forecast_hour, member)
-        fig = plot_basemap(self.lon, self.lat, field, self.basemap, **plot_basemap_kwargs)
+        fig = plot_basemap(self.basemap, self.lon, self.lat, field, **plot_basemap_kwargs)
         return fig

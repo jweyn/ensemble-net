@@ -140,6 +140,7 @@ class IEMRadar(object):
         """
         Find the grid-point index of the closest point to the specified latitude and longitude values in loaded
         NCARArray data.
+
         :param lat: float or int: latitude in degrees
         :param lon: float or int: longitude in degrees
         :return:
