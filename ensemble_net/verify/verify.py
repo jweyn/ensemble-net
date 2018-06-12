@@ -14,7 +14,7 @@ import xarray as xr
 import numpy as np
 
 
-def diff_mesowest(ensemble, meso, variables='all', stations='all', do_mean=False, verbose=True):
+def diff_mesowest(ensemble, meso, variables='all', stations='all', verbose=True):
     """
     Calculate error for ensemble forecasts given MesoWest observations. Returns an xarray dataset with stations as
     variables, and init_dates, times, members, and variables as dimensions.
@@ -24,7 +24,6 @@ def diff_mesowest(ensemble, meso, variables='all', stations='all', do_mean=False
     :param variables: iter: iterable of variables to verify, or string 'all' for all matching variables
     :param stations: iter: iterable of string station IDs, or 'all' for all available stations. Stations outside of the
         lat/lon range of the ensemble will be ignored.
-    :param do_mean: bool: if True, also calculates the characteristics of the ensemble mean
     :param verbose: bool: print out progress statements
     :return:
     """
@@ -35,8 +34,6 @@ def diff_mesowest(ensemble, meso, variables='all', stations='all', do_mean=False
     init_dates = ensemble.dataset_init_dates
     forecast_hours = [f for f in ensemble.forecast_hour_coord]
     members = [m for m in ensemble.member_coord]
-    # if do_mean:
-    #     members = [0] + members
     if stations == 'all':
         stations = list(meso.Data.keys())
     elif not (isinstance(stations, list) or isinstance(stations, tuple)):
@@ -57,9 +54,11 @@ def diff_mesowest(ensemble, meso, variables='all', stations='all', do_mean=False
         }
     )
 
-    num_stations = len(meso.Data.keys())
+    num_stations = len(stations)
     station_count = 0
     for stid, df in meso.Data.items():
+        if stid not in stations:
+            continue
         station_count += 1
         if verbose:
             print('diff_mesowest: processing station %d of %d (%s)' % (station_count, num_stations, stid))
@@ -72,7 +71,7 @@ def diff_mesowest(ensemble, meso, variables='all', stations='all', do_mean=False
             continue
         for v in range(len(variables)):
             var = variables[v]
-            if var not in df.columns:
+            if var not in df.columns:  # Missing variable
                 continue
             ens_data = ensemble.Dataset[var][:, :, :, ens_y_index, ens_x_index].values
             obs_data = np.full(len(ens_times), np.nan, dtype=np.float32)
@@ -80,7 +79,7 @@ def diff_mesowest(ensemble, meso, variables='all', stations='all', do_mean=False
                 time = ens_times[t]
                 try:
                     obs_time_index = df.index.get_loc(time, method='nearest', tolerance=timedelta(hours=1))
-                except (IndexError, ValueError):  # Missing value
+                except (IndexError, KeyError, ValueError):  # Missing value
                     continue
                 obs_data[t] = df[var].iloc[obs_time_index]
             error[:, :, :, v] = ens_data - obs_data

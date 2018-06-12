@@ -23,7 +23,7 @@ from datetime import datetime, timedelta
 
 # Ensemble data parameters
 start_init_date = datetime(2016, 4, 1)
-end_init_date = datetime(2016, 4, 1)
+end_init_date = datetime(2016, 4, 30)
 pd_date_range = pd.date_range(start=start_init_date, end=end_init_date, freq='D')
 init_dates = list(pd_date_range.to_pydatetime())
 forecast_hours = list(range(0, 49, 12))
@@ -40,10 +40,10 @@ ensemble.load(coords=[], autoclose=True,
               chunks={'member': 10, 'time': 12, 'south_north': 100, 'west_east': 100})
 
 # Subset with grid parameters
-lat_0 = 31.
-lat_1 = 36.
-lon_0 = -92.5
-lon_1 = -82.5
+lat_0 = 25.
+lat_1 = 40.
+lon_0 = -100
+lon_1 = -80
 bbox = '%s,%s,%s,%s' % (lon_0, lat_0, lon_1, lat_1)
 
 # Load observation data
@@ -51,10 +51,12 @@ meso_start_date = date_to_meso_date(start_init_date - timedelta(hours=1))
 meso_end_date = date_to_meso_date(end_init_date + timedelta(hours=max(forecast_hours)))
 meso = MesoWest(token='')
 meso.load_metadata(bbox=bbox, network='1')
-meso.load(meso_start_date, meso_end_date, bbox=bbox, network='1', vars=variables, units='temp|K', hfmetars='0')
+meso.load(meso_start_date, meso_end_date, chunks='day', file='mesowest-201604.pkl', verbose=True,
+          bbox=bbox, network='1', vars=variables, units='temp|K', hfmetars='0')
 
 # Get the errors
 error_ds = diff_mesowest(ensemble, meso)
+error_ds.to_netcdf('mesowest-error-201604.nc')
 
 # Do a sample colored scatter plot
 member = 0

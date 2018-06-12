@@ -15,7 +15,8 @@ import numpy as np
 import pandas as pd
 import pickle
 import os
-from ..util import meso_date_to_datetime
+from ..util import meso_date_to_datetime, date_to_meso_date
+from datetime import timedelta
 
 
 def _convert_variable_names(variables):
@@ -65,6 +66,31 @@ def _cloud(series):
     return new_series
 
 
+def _chunk_dates(start, end, chunks):
+    start_date = meso_date_to_datetime(start)
+    end_date = meso_date_to_datetime(end)
+    day_dict = {
+        'year': 365,
+        'month': 30,
+        'week': 7,
+        'day': 1
+    }
+    interval = timedelta(days=day_dict[chunks])
+    chunk_dates = []
+    first = True
+    current_date = start_date
+    while current_date < end_date:
+        if first:
+            chunk_dates.append((date_to_meso_date(current_date),
+                                date_to_meso_date(min(end_date, current_date + interval))))
+            first = False
+        else:
+            chunk_dates.append((date_to_meso_date(current_date + timedelta(minutes=1)),
+                                date_to_meso_date(min(end_date, current_date+interval))))
+        current_date += interval
+    return chunk_dates
+
+
 def _reformat_data(data, start, end):
     """
     Re-formats the raw json data from MesoWest API call into pandas DataFrames.
@@ -96,7 +122,7 @@ def _reformat_data(data, start, end):
             minutes.append(pd.to_datetime(date).minute)  # convert pd str to dt
         minute_count = np.bincount(np.array(minutes))
         rev_count = minute_count[::-1]
-        minute_mode = minute_count.size - rev_count.argmax() - 1
+        minute_mode = minute_count.size - rev_count[:10].argmax() - 1
         obs_hourly = obs[pd.DatetimeIndex(obs['date_time']).minute == minute_mode]
 
         # Reformat date to object
@@ -149,7 +175,7 @@ def _reformat_data(data, start, end):
 
         # Re-index by hourly. Fills missing with NaNs. Try to interpolate the NaNs.
         expected_start = meso_date_to_datetime(start).replace(minute=minute_mode)
-        expected_end = meso_date_to_datetime(end).replace(minute=minute_mode)
+        expected_end = meso_date_to_datetime(end)
         expected_times = pd.date_range(expected_start, expected_end, freq='H').to_pydatetime()
         obs_hourly = obs_hourly.reindex(expected_times)
         obs_hourly = obs_hourly.interpolate(limit=2)
@@ -158,6 +184,20 @@ def _reformat_data(data, start, end):
         new_data[station_data['STID']] = obs_hourly
 
     return new_data
+
+
+def _concatenate_data(data, added_data):
+    existing_keys = list(data.keys())
+    added_keys = list(added_data.keys())
+    new_keys = [key for key in added_keys if key not in existing_keys]
+    for key in existing_keys:
+        if key in added_keys:
+            new_df = pd.concat((data[key], added_data[key]))
+            # Remove any accidental duplicates
+            data[key] = new_df[~new_df.index.duplicated(keep='last')]
+    for key in new_keys:
+        data[key] = added_data[key]
+    return data
 
 
 def _reformat_metadata(metadata):
@@ -206,34 +246,63 @@ class MesoWest(Meso):
         except AttributeError:
             raise AttributeError('Call to lon method is only valid after metadata are loaded.')
 
-    def timeseries(self, start, end, **kwargs):
+    def timeseries(self, start, end, chunks='year', verbose=False, **kwargs):
+        """
+        Wrapper for the MesoPy 'timeseries' method. Takes in the same 'start', 'end', and 'kwargs'. The parameter
+        'chunks' specifies whether data should be retrieved in groups of yearly, monthly, weekly, or daily timeseries.
+        Returns concise, formatted data (dict of stations, each station a pandas DataFrame).
+
+        :param start: str: starting date for MesoPy timeseries (YYYYMMDDHHMM)
+        :param end: str: ending date for MesoPy timeseries (YYYYMMDDHHMM)
+        :param chunks: str: 'year', 'month', 'week', or 'day', the interval for retrieving data from the API
+        :param verbose: bool: print progress statements
+        :param kwargs: passed to MesoPy.Meso.timeseries
+        :return: dict of pandas DataFrames for each station
+        """
+        if chunks not in ['year', 'month', 'week', 'day']:
+            raise ValueError("chunks must be 'year', 'month', 'week', or 'day'")
         if 'vars' in list(kwargs.keys()):
             kwargs['vars'] = _convert_variable_names(kwargs['vars'])
-        ts = super(MesoWest, self).timeseries(start, end, **kwargs)
-        return _reformat_data(ts, start, end)
+        chunk_dates = _chunk_dates(start, end, chunks)
+        first = True
+        for chunk in chunk_dates:
+            if verbose:
+                print('MesoWest.timeseries: retrieving station data from %s to %s' % chunk)
+            ts = super(MesoWest, self).timeseries(*chunk, **kwargs)
+            if first:
+                data = _reformat_data(ts, *chunk)
+                first = False
+            else:
+                data = _concatenate_data(data, _reformat_data(ts, *chunk))
+        return data
 
     def metadata(self, **kwargs):
         meta = super(MesoWest, self).metadata(**kwargs)
         return _reformat_metadata(meta)
 
-    def load(self, start, end, file=None, **kwargs):
+    def load(self, start, end, chunks='year', file=None, verbose=False, **kwargs):
         """
         Retrieves a timeseries of data with the specified start and end times, and kwargs passed to the MesoPy
-        'timeseries' method. Loads the concise, formatted data to the instance's 'Data' attribute. If the optional
-        kwarg 'file' is given, then searches first to load the data from that file, and otherwise retrieves data, then
-        saves it to that file.
+        'timeseries' method. Loads the concise, formatted data to the instance's 'Data' attribute. The parameter
+        'chunks' specifies whether data should be retrieved in groups of yearly, monthly, weekly, or daily timeseries.
+        If the optional kwarg 'file' is given, then searches first to load the data from that file, and otherwise
+        retrieves data, then saves it to that file.
 
         :param start: str: starting date for MesoPy timeseries (YYYYMMDDHHMM)
         :param end: str: ending date for MesoPy timeseries (YYYYMMDDHHMM)
+        :param chunks: str: 'year', 'month', 'week', or 'day', the interval for retrieving data from the API
         :param file: str: optional file name to read and/or write data to (using pickle)
+        :param verbose: bool: print progress statements
         :param kwargs: passed to MesoPy.Meso.timeseries
         :return:
         """
+        if chunks not in ['year', 'month', 'week', 'day']:
+            raise ValueError("chunks must be 'year', 'month', 'week', or 'day'")
         if file is not None:
             if os.path.isfile(file):
                 file_exists = True
                 write_file = False
-            elif os.path.isfile('%s/%s' % (self._root_directory, file)):
+            elif self._root_directory is not None and os.path.isfile('%s/%s' % (self._root_directory, file)):
                 file_exists = True
                 write_file = False
                 file = '%s/%s' % (self._root_directory, file)
@@ -248,7 +317,7 @@ class MesoWest(Meso):
             with open(file, 'rb') as handle:
                 ts = pickle.load(handle)
         else:
-            ts = self.timeseries(start, end, **kwargs)
+            ts = self.timeseries(start, end, chunks, verbose=verbose, **kwargs)
 
         if write_file:
             with open(file, 'wb') as handle:
