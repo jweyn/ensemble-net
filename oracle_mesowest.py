@@ -12,7 +12,7 @@ NCAR ensemble forecast at individual stations.
 
 from ensemble_net.data_tools import NCARArray, MesoWest
 from ensemble_net.util import date_to_meso_date
-from ensemble_net.verify import diff_mesowest
+from ensemble_net.verify import abs_error_mesowest
 from ensemble_net.plot import plot_basemap
 import matplotlib.pyplot as plt
 import pandas as pd

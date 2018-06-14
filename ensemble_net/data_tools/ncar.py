@@ -135,6 +135,34 @@ class NCARArray(object):
         """
         self.dataset_init_dates = list(init_dates)
 
+    def set_forecast_hour_coord(self, forecast_hour_coord='default'):
+        """
+        Set the NCARArray object's 'forecast_hour_coord' attribute, which tells the object methods which forecast hours
+        to look at for individual init_dates. Can be 'default' to reset to the default hourly by 48 hours or an iterable
+        of integer forecast hours.
+
+        :param forecast_hour_coord: iter: forecast hours to set, or 'default'
+        :return:
+        """
+        if forecast_hour_coord == 'default':
+            self.forecast_hour_coord = list(range(0, 49))
+        else:
+            self.forecast_hour_coord = [f for f in forecast_hour_coord]
+
+    def set_member_coord(self, member_coord='default'):
+        """
+        Set the NCARArray object's 'member_coord' attribute, which tells the object methods which ensemble members to
+        look at when indexing. Can be 'default' to reset to the default members 1--10 or an iterable of integer member
+        IDs.
+
+        :param forecast_hour_coord: iter: forecast hours to set, or 'default'
+        :return:
+        """
+        if member_coord == 'default':
+            self.member_coord = list(range(1, 11))
+        else:
+            self.member_coord = [m for m in member_coord]
+
     def closest_lat_lon(self, lat, lon):
         """
         Find the grid-point index of the closest point to the specified latitude and longitude values in loaded

@@ -259,6 +259,7 @@ class IEMRadar(object):
             if init_lat_lon:
                 nc_fid.variables['lat'][:] = read_nc_fid.variables['lat'][:ny]
                 nc_fid.variables['lon'][:] = read_nc_fid.variables['lon'][:nx] + 360.
+                init_lat_lon = False
             nc_fid.variables['composite_%s' % self._composite_type][time_index, :, :] = \
                 np.array(read_nc_fid.variables['composite_%s' % self._composite_type][:ny, :nx], dtype=np.float32)
 

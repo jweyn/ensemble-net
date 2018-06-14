@@ -63,7 +63,7 @@ def fss(modeled, observed, threshold, neighborhood=1, kernel='square', inverse_t
     :param modeled: ndarray: modeled values. Acts on the last two dimensions.
     :param observed: ndarray: observed values. Must match dimensions of modeled.
     :param threshold: float: threshold value
-    :param neighborhood: int: grid-point neighborhood radius (default 0)
+    :param neighborhood: int: grid-point neighborhood radius (default 1)
     :param kernel: str: 'square' or 'circle' (default 'square')
     :param inverse_threshold: set to True if values BELOW threshold are desired (default False)
     :param return_mse: set to True to also return MSE values.
