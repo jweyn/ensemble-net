@@ -12,7 +12,7 @@ NCAR ensemble forecast at individual stations.
 
 from ensemble_net.data_tools import NCARArray, MesoWest
 from ensemble_net.util import date_to_meso_date
-from ensemble_net.verify import abs_error_mesowest
+from ensemble_net.verify import ae_meso
 from ensemble_net.plot import plot_basemap
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -40,8 +40,8 @@ lon_1 = -80.
 ensemble = NCARArray(root_directory='/Users/jweyn/Data/NCAR_Ensemble',)
 ensemble.set_init_dates(init_dates)
 ensemble.forecast_hour_coord = forecast_hours  # Not good practice, but an override removes unnecessary time indices
-ensemble.retrieve(init_dates, forecast_hours, members, get_ncar_netcdf=False, verbose=True)
-ensemble.write(variables, forecast_hours=forecast_hours, members=members, use_ncar_netcdf=False, verbose=True)
+# ensemble.retrieve(init_dates, forecast_hours, members, get_ncar_netcdf=False, verbose=True)
+# ensemble.write(variables, forecast_hours=forecast_hours, members=members, use_ncar_netcdf=False, verbose=True)
 ensemble.load(coords=[], autoclose=True,
               chunks={'member': 10, 'time': 12, 'south_north': 100, 'west_east': 100})
 
@@ -49,15 +49,15 @@ ensemble.load(coords=[], autoclose=True,
 bbox = '%s,%s,%s,%s' % (lon_0, lat_0, lon_1, lat_1)
 meso_start_date = date_to_meso_date(start_init_date - timedelta(hours=1))
 meso_end_date = date_to_meso_date(end_init_date + timedelta(hours=max(forecast_hours)))
-meso = MesoWest(token='')
+meso = MesoWest(token='038cd42021bc46faa8d66fd59a8b72ab')
 meso.load_metadata(bbox=bbox, network='1')
 meso.load(meso_start_date, meso_end_date, chunks='day', file='mesowest-201604.pkl', verbose=True,
           bbox=bbox, network='1', vars=variables, units='temp|K', hfmetars='0')
 
 # Get the errors
-error_ds = diff_mesowest(ensemble, meso)
-error_ds.to_netcdf('mesowest-error-201604.nc')
-error_ds = xr.open_dataset('mesowest-error-201604.nc')
+error_ds = ae_meso(ensemble, meso)
+# error_ds.to_netcdf('extras/mesowest-error-201604.nc')
+# error_ds = xr.open_dataset('extras/mesowest-error-201604.nc')
 
 # For each init and forecast hour, find the station-averaged MSE for each ensemble member (and the ensemble mean)
 ds_times = list(error_ds.variables['time'].values)

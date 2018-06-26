@@ -12,7 +12,7 @@ at individual stations.
 
 from ensemble_net.data_tools import NCARArray, MesoWest
 from ensemble_net.util import date_to_meso_date
-from ensemble_net.verify import abs_error_mesowest
+from ensemble_net.verify import ae_meso
 from ensemble_net.plot import plot_basemap
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -55,7 +55,7 @@ meso.load(meso_start_date, meso_end_date, chunks='day', file='mesowest-201604.pk
           bbox=bbox, network='1', vars=variables, units='temp|K', hfmetars='0')
 
 # Get the errors
-error_ds = abs_error_mesowest(ensemble, meso)
+error_ds = ae_meso(ensemble, meso)
 error_ds.to_netcdf('mesowest-error-201604.nc')
 
 # Do a sample colored scatter plot

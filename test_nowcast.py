@@ -29,8 +29,8 @@ lon_1 = -97.
 
 
 # Create an NCAR Ensemble object to load data from
-start_init_date = datetime(2016, 5, 1)
-end_init_date = datetime(2016, 5, 28)
+start_init_date = datetime(2016, 5, 2)
+end_init_date = datetime(2016, 5, 4)
 pd_date_range = pd.date_range(start=start_init_date, end=end_init_date, freq='D')
 init_dates = list(pd_date_range.to_pydatetime())
 forecast_hours = list(range(0, 28))
@@ -39,24 +39,25 @@ variables = ('TMP2', 'UGRD', 'VGRD')
 
 ensemble = NCARArray(root_directory='/Users/jweyn/Data/NCAR_Ensemble',)
 ensemble.set_init_dates(init_dates)
-ensemble.retrieve(init_dates, forecast_hours, members, get_ncar_netcdf=False, verbose=True)
-ensemble.write(variables, forecast_hours=forecast_hours, use_ncar_netcdf=False, verbose=True)
+# ensemble.retrieve(init_dates, forecast_hours, members, get_ncar_netcdf=False, verbose=True)
+# ensemble.write(variables, forecast_hours=forecast_hours, use_ncar_netcdf=False, verbose=True)
 ensemble.load(coords=[], autoclose=True,
               chunks={'member': 1, 'time': 12, 'south_north': 100, 'west_east': 100})
 
 
 # Format the predictor and target data
-predictors, targets = preprocessing.train_data_from_NCAR(ensemble, (lon_0, lon_1), (lat_0, lat_1), ('UGRD', 'VGRD'),
-                                                         latlon=True, lead_time=1, time_interval=1, train_time_steps=2)
+predictors, targets = preprocessing.train_data_from_ensemble(ensemble, (lon_0, lon_1), (lat_0, lat_1), ('UGRD', 'VGRD'),
+                                                             latlon=True, lead_time=1, time_interval=1,
+                                                             train_time_steps=2)
 
 
 # Save these to a temporary pickle
-pickle_file = './nowcast-variables.pkl'
+pickle_file = './nowcast-variables-x2.pkl'
 preprocessing.train_data_to_pickle(pickle_file, predictors, targets)
 
 
 # # Open the temporary data
-# pickle_file = './nowcast-variables.pkl'
+# pickle_file = './nowcast-variables-x2.pkl'
 # predictors, targets = preprocessing.train_data_from_pickle(pickle_file)
 
 
@@ -139,25 +140,25 @@ fig.set_size_inches(6, 6)
 gs1 = gs.GridSpec(2, 2)
 ax = plt.subplot(221)
 plt.pcolormesh(lons, lats, np.sqrt(p_plot[sample, :, :, 1]**2. + p_plot[sample, :, :, 3]**2), vmin=0., vmax=25.,
-              cmap='gist_stern_r')
+               cmap='gist_stern_r')
 plt.colorbar()
 plt.quiver(lons[::2, ::2], lats[::2, ::2], p_plot[sample, ::2, ::2, 1], p_plot[sample, ::2, ::2, 3], scale=100)
 plt.title('$t=-2$')
 ax = plt.subplot(222)
 plt.pcolormesh(lons, lats, np.sqrt(p_plot[sample, :, :, 0]**2. + p_plot[sample, :, :, 2]**2), vmin=0., vmax=25.,
-              cmap='gist_stern_r')
+               cmap='gist_stern_r')
 plt.colorbar()
 plt.quiver(lons[::2, ::2], lats[::2, ::2], p_plot[sample, ::2, ::2, 0], p_plot[sample, ::2, ::2, 2], scale=100)
 plt.title('$t=-1$')
 ax = plt.subplot(223)
 plt.pcolormesh(lons_t, lats_t, np.sqrt(t_plot[sample, :, :, 0]**2. + t_plot[sample, :, :, 1]**2), vmin=0., vmax=25.,
-              cmap='gist_stern_r')
+               cmap='gist_stern_r')
 plt.colorbar()
 plt.quiver(lons_t[::2, ::2], lats_t[::2, ::2], t_plot[sample, ::2, ::2, 0], t_plot[sample, ::2, ::2, 1], scale=100)
 plt.title('verification $t=0$')
 ax = plt.subplot(224)
 plt.pcolormesh(lons_t, lats_t, np.sqrt(pred_plot[sample, :, :, 0]**2. + pred_plot[sample, :, :, 1]**2),
-              vmin=0., vmax=25., cmap='gist_stern_r')
+               vmin=0., vmax=25., cmap='gist_stern_r')
 plt.colorbar()
 plt.quiver(lons_t[::2, ::2], lats_t[::2, ::2], pred_plot[sample, ::2, ::2, 0], pred_plot[sample, ::2, ::2, 1],
            scale=100)

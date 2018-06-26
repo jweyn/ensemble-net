@@ -16,7 +16,7 @@ import numpy as np
 from scipy.interpolate import griddata
 
 
-def abs_error_mesowest(ensemble, meso, variables='all', stations='all', verbose=True):
+def ae_meso(ensemble, meso, variables='all', stations='all', verbose=True):
     """
     Calculate absolute error for ensemble forecasts at given MesoWest observations. Returns an xarray dataset with
     stations as variables, and init_dates, times, members, and variables as dimensions.
@@ -63,7 +63,7 @@ def abs_error_mesowest(ensemble, meso, variables='all', stations='all', verbose=
             continue
         station_count += 1
         if verbose:
-            print('abs_error_mesowest: processing station %d of %d (%s)' % (station_count, num_stations, stid))
+            print('ae_meso: processing station %d of %d (%s)' % (station_count, num_stations, stid))
         error = np.full((len(init_dates), len(members), len(ens_times), len(variables)), np.nan, dtype=np.float32)
         lat, lon = float(meso.Metadata[stid]['LATITUDE']), float(meso.Metadata[stid]['LONGITUDE'])
         try:
@@ -87,6 +87,8 @@ def abs_error_mesowest(ensemble, meso, variables='all', stations='all', verbose=
             error[:, :, :, v] = ens_data - obs_data
 
         ds[stid] = (('init_date', 'member', 'time', 'variable'), error)
+        ds[stid].attrs['LATITUDE'] = float(meso.Metadata[stid]['LATITUDE'])
+        ds[stid].attrs['LONGITUDE'] = float(meso.Metadata[stid]['LONGITUDE'])
 
     return ds
 

@@ -12,8 +12,8 @@ from datetime import datetime, timedelta
 import keras.backend as K
 
 
-def train_data_from_NCAR(ncar, xlim, ylim, variables=(), latlon=False, lead_time=1, train_time_steps=1,
-                         time_interval=1, split_ensemble_members=False, pickle_file=None, verbose=True):
+def train_data_from_ensemble(ncar, xlim, ylim, variables=(), latlon=False, lead_time=1, train_time_steps=1,
+                             time_interval=1, split_ensemble_members=False, pickle_file=None, verbose=True):
     """
     Generate training and validation data from processed (written/loaded) NCAR ensemble files, for nowcasting. Data are
     hourly. Parameter 'lead_time' gives the forecast lead time in hours; 'train_time_steps' is the number of data time
@@ -55,7 +55,7 @@ def train_data_from_NCAR(ncar, xlim, ylim, variables=(), latlon=False, lead_time
     grand_index_list = []
     grand_time_list = []
     if verbose:
-        print('train_data_from_NCAR: getting indices of all samples')
+        print('train_data_from_ensemble: getting indices of all samples')
     for init in range(num_init):
         init_date = ncar.dataset_init_dates[init]
         for verif in range(first_verification, last_verification, time_interval):
@@ -64,7 +64,7 @@ def train_data_from_NCAR(ncar, xlim, ylim, variables=(), latlon=False, lead_time
                 # Complex indexing to deal with how xarray concatenates the time variable
                 verif_index = list(ncar.Dataset.variables['time'].values).index(np.datetime64(verif_datetime))
             except (KeyError, IndexError):
-                print('train_data_from_NCAR warning: time index (%s) not found in data' % verif_datetime)
+                print('train_data_from_ensemble warning: time index (%s) not found in data' % verif_datetime)
                 continue
             sample_train_index_list = []
             sample_train_time_list = []
@@ -75,7 +75,7 @@ def train_data_from_NCAR(ncar, xlim, ylim, variables=(), latlon=False, lead_time
                     sample_train_index_list.append(train_index)
                     sample_train_time_list.append(train_datetime)
             except (KeyError, IndexError):
-                print('train_data_from_NCAR warning: time index (%s) not found in data' % train_datetime)
+                print('train_data_from_ensemble warning: time index (%s) not found in data' % train_datetime)
                 continue
             grand_index_list.append([init, verif_index, sample_train_index_list])
             grand_time_list.append([init_date, verif_datetime, sample_train_time_list])
@@ -102,15 +102,15 @@ def train_data_from_NCAR(ncar, xlim, ylim, variables=(), latlon=False, lead_time
     predictors = np.full((num_samples, num_members, num_y, num_x, num_var, train_time_steps), np.nan)
 
     # Add the data to the arrays
-    print('train_data_from_NCAR: strap in; this is gonna take a while.')
+    print('train_data_from_ensemble: strap in; this is gonna take a while.')
     if verbose:
-        print('train_data_from_NCAR: dropping unnecessary variables')
+        print('train_data_from_ensemble: dropping unnecessary variables')
     new_ds = ncar.Dataset.copy()
     for key in new_ds.keys():
         if key not in [k for k in new_ds.dims.keys()] and key not in variables:
             new_ds = new_ds.drop(key)
     if verbose:
-        print('train_data_from_NCAR: reading all the data in the spatial subset')
+        print('train_data_from_ensemble: reading all the data in the spatial subset')
     new_ds = new_ds.isel(south_north=range(y1, y2), west_east=range(x1, x2))
     new_ds.load()
     for v in range(num_var):
