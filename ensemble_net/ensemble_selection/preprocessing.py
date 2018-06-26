@@ -98,7 +98,7 @@ def predictors_from_ensemble(ensemble, xlim, ylim, variables=(), latlon=True, fo
     :param convolution_step: int: spacing in grid points between convolutions. Ignored if convolution==None.
     :param pickle_file: str: if given, file to write pickled predictor array
     :param verbose: bool: print progress statements
-    :return:
+    :return: ndarray: array of predictors
     """
     # Test that data is loaded
     if ensemble.Dataset is None:
@@ -168,7 +168,7 @@ def predictors_from_ensemble(ensemble, xlim, ylim, variables=(), latlon=True, fo
         num_conv_y = len(range(start_point_y, num_y - convolution[1] // 2, convolution_step))
         num_conv_x = len(range(start_point_x, num_x - convolution[0] // 2, convolution_step))
         num_conv = num_conv_y * num_conv_x
-        predictors = np.full((num_samples, num_var, num_members, num_f_hours, convolution[2], convolution[0], num_conv),
+        predictors = np.full((num_samples, num_var, num_members, num_f_hours, convolution[1], convolution[0], num_conv),
                              np.nan, dtype=np.float32)
 
     # Add the data to the arrays
@@ -176,8 +176,8 @@ def predictors_from_ensemble(ensemble, xlim, ylim, variables=(), latlon=True, fo
     if verbose:
         print('predictors_from_ensemble: dropping unnecessary variables')
     new_ds = ensemble.Dataset.copy()
-    for key in new_ds.keys():
-        if key not in [k for k in new_ds.dims.keys()] and key not in variables:
+    for key in new_ds.data_vars.keys():
+        if key not in variables:
             new_ds = new_ds.drop(key)
     if verbose:
         print('predictors_from_ensemble: reading all the data in the spatial subset')
@@ -197,6 +197,10 @@ def predictors_from_ensemble(ensemble, xlim, ylim, variables=(), latlon=True, fo
             else:
                 new_field = _convolve(field, convolution, convolution_step)
                 predictors[sample, v, ...] = new_field
+
+    # Transpose the array if using convolutions, so that y,x are the last 2 dims
+    if convolution is not None:
+        predictors = predictors.transpose((0, 1, 2, 3, 6, 4, 5))
 
     # Save as pickle, if requested
     if pickle_file is not None:
@@ -234,14 +238,14 @@ def predictors_from_ae_meso(ae_ds, ensemble, xlim, ylim, variables=(), forecast_
         'rmse': root-mean-square-error
     :param pickle_file: str: if given, file to write pickled predictor array
     :param verbose: bool: print progress statements
-    :return:
+    :return: ndarray: array of predictors
     """
     def get_count(ds):
         station_list = list(ds.data_vars.keys())
         random.shuffle(station_list)
-        num_stations = len(station_list) // 10
+        n_s = len(station_list) // 10
         count = 0
-        for s in range(num_stations):
+        for s in range(n_s):
             count = max(count, np.sum(~np.isnan(ds[station_list[s]].values)))
         return count
 
@@ -265,6 +269,10 @@ def predictors_from_ae_meso(ae_ds, ensemble, xlim, ylim, variables=(), forecast_
             if (yl[1] >= ll[0] >= yl[0]) and (xl[1] >= ll[1] >= xl[0]):
                 result.append(s)
         return result
+
+    # Test that data is loaded
+    if ensemble.Dataset is None:
+        raise IOError('no data loaded to NCARArray object.')
 
     # Sanity check for parameters
     if convolution_step < 1:
@@ -307,8 +315,7 @@ def predictors_from_ae_meso(ae_ds, ensemble, xlim, ylim, variables=(), forecast_
     if verbose:
         print('predictors_from_ae_meso: getting indices of all samples')
     for init in range(num_init):
-        # init_date = ae_ds['init_date'].values[init]  # Will need to convert these np.datetime64 values
-        init_date = ensemble.dataset_init_dates[init]
+        init_date = ae_ds['init_date'].values.astype('datetime64[ms]').astype(datetime)[init]
         sample_train_index_list = []
         sample_train_time_list = []
         try:
@@ -396,3 +403,85 @@ def predictors_from_ae_meso(ae_ds, ensemble, xlim, ylim, variables=(), forecast_
             pickle.dump(save_vars, handle, pickle.HIGHEST_PROTOCOL)
 
     return predictors
+
+
+def convert_ensemble_predictors_to_samples(predictors, convolved=False, split_members=False):
+    """
+    Convert an array from predictors_from_ensemble into a samples-by-features array.
+
+    :param predictors: ndarray: array of predictors
+    :param convolved: bool: if True, the predictors were generated with convolution != None.
+    :param split_members: bool: if False, converts the members dimension to another image "channel", like variables
+    :return: ndarray: array of reshaped predictors; tuple: shape of feature input, for future reshaping
+    """
+    shape = predictors.shape
+    if convolved:
+        spatial_shape = shape[5:]
+        if split_members:
+            input_shape = spatial_shape + shape[1:4]
+            num_samples = shape[0]*shape[4]
+            num_channels = shape[1]*shape[2]*shape[3]
+            predictors = predictors.transpose((0, 4, 5, 6, 1, 2, 3))
+            predictors = predictors.reshape((num_samples,) + spatial_shape + (num_channels,))
+        else:
+            input_shape = spatial_shape + (shape[1],) + (shape[3],)
+            num_samples = shape[0]*shape[4]*shape[2]
+            num_channels = shape[1]*shape[3]
+            predictors = predictors.transpose((0, 2, 4, 5, 6, 1, 3))
+            predictors = predictors.reshape((num_samples,) + spatial_shape + (num_channels,))
+    else:
+        spatial_shape = shape[4:]
+        if split_members:
+            input_shape = spatial_shape + shape[1:4]
+            num_samples = shape[0]
+            num_channels = shape[1]*shape[2]*shape[3]
+            predictors = predictors.transpose((0, 4, 5, 1, 2, 3))
+            predictors = predictors.reshape((num_samples,) + spatial_shape + (num_channels,))
+        else:
+            input_shape = spatial_shape + (shape[1],) + (shape[3],)
+            num_samples = shape[0]*shape[2]
+            num_channels = shape[1]*shape[3]
+            predictors = predictors.transpose((0, 2, 4, 5, 1, 3))
+            predictors = predictors.reshape((num_samples,) + spatial_shape + (num_channels,))
+
+    return predictors, input_shape
+
+
+def convert_ae_meso_predictors_to_samples(predictors, convolved=False, split_members=False):
+    """
+    Convert an array from predictors_from_ensemble into a samples-by-features array.
+
+    :param predictors: ndarray: array of predictors
+    :param convolved: bool: if True, the predictors were generated with convolution != None.
+    :param split_members: bool: if False, converts the members dimension to another image "channel", like variables
+    :return: ndarray: array of reshaped predictors; tuple: shape of feature input, for future reshaping
+    """
+    shape = predictors.shape
+    if convolved:
+        if split_members:
+            input_shape = shape[1:4]
+            num_samples = shape[0]*shape[4]
+            num_features = shape[1]*shape[2]*shape[3]
+            predictors = predictors.transpose((0, 4, 1, 2, 3))
+            predictors = predictors.reshape((num_samples,) + (num_features,))
+        else:
+            input_shape = (shape[1],) + (shape[3],)
+            num_samples = shape[0]*shape[4]*shape[2]
+            num_features = shape[1]*shape[3]
+            predictors = predictors.transpose((0, 2, 4, 1, 3))
+            predictors = predictors.reshape((num_samples,) + (num_features,))
+    else:
+        if split_members:
+            input_shape = (shape[4],) + shape[1:4]
+            num_samples = shape[0]
+            num_features = shape[1]*shape[2]*shape[3]*shape[4]
+            predictors = predictors.transpose((0, 4, 1, 2, 3))
+            predictors = predictors.reshape((num_samples,) + (num_features,))
+        else:
+            input_shape = (shape[4],) + (shape[1],) + (shape[3],)
+            num_samples = shape[0]*shape[2]
+            num_features = shape[1]*shape[3]*shape[4]
+            predictors = predictors.transpose((0, 2, 4, 1, 3))
+            predictors = predictors.reshape((num_samples,) + (num_features,))
+
+    return predictors, input_shape
