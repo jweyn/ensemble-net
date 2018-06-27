@@ -11,10 +11,8 @@ Methods for pre-processing data before use in an ensemble-selection model.
 import numpy as np
 import pickle
 import random
-import xarray as xr
-from ..data_tools import NCARArray
+from ..nowcast.preprocessing import train_data_from_pickle, train_data_to_pickle, delete_nan_samples
 from datetime import datetime, timedelta
-import keras.backend as K
 from numba import jit
 
 
@@ -74,6 +72,16 @@ def _convolve(X, c, step):
             result[..., count] = X[..., y1:y2, x1:x2]
             count += 1
     return result
+
+
+def _conv_agg(arr, agg, axis=0):
+    if agg == 'mae':
+        new_arr = np.nanmean(arr, axis=axis)
+    elif agg == 'mse':
+        new_arr = np.nanmean(arr ** 2., axis=axis)
+    elif agg == 'rmse':
+        new_arr = np.sqrt(np.nanmean(arr ** 2., axis=axis))
+    return new_arr
 
 
 def predictors_from_ensemble(ensemble, xlim, ylim, variables=(), latlon=True, forecast_hours=(0, 12, 24),
@@ -386,12 +394,7 @@ def predictors_from_ae_meso(ae_ds, ensemble, xlim, ylim, variables=(), forecast_
                         field = ae_ds[station].isel(init_date=ind[0], time=ind[1], variable=v_ind).values
                         fields.append(field)
                     fields = np.array(fields)
-                    if convolution_agg == 'mae':
-                        new_field = np.nanmean(fields, axis=0)
-                    elif convolution_agg == 'mse':
-                        new_field = np.nanmean(fields**2., axis=0)
-                    elif convolution_agg == 'rmse':
-                        new_field = np.sqrt(np.nanmean(fields**2., axis=0))
+                    new_field = _conv_agg(fields, convolution_agg, axis=0)
                     predictors[sample, v, :, :, c] = new_field
 
     # Save as pickle, if requested
@@ -447,16 +450,20 @@ def convert_ensemble_predictors_to_samples(predictors, convolved=False, split_me
     return predictors, input_shape
 
 
-def convert_ae_meso_predictors_to_samples(predictors, convolved=False, split_members=False):
+def convert_ae_meso_predictors_to_samples(predictors, convolved=False, agg=None, split_members=False):
     """
     Convert an array from predictors_from_ensemble into a samples-by-features array.
 
     :param predictors: ndarray: array of predictors
     :param convolved: bool: if True, the predictors were generated with convolution != None.
+    :param agg: None or str: if not None, converts all stations to an aggregated single error metric, 'mae', 'mse', or
+        'rmse'. Ignored if convolved == True.
     :param split_members: bool: if False, converts the members dimension to another image "channel", like variables
     :return: ndarray: array of reshaped predictors; tuple: shape of feature input, for future reshaping
     """
     shape = predictors.shape
+    if agg is not None and convolved:
+        print("convert_ae_meso_predictors_to_samples: warning: ignoring parameter 'agg'")
     if convolved:
         if split_members:
             input_shape = shape[1:4]
@@ -476,12 +483,40 @@ def convert_ae_meso_predictors_to_samples(predictors, convolved=False, split_mem
             num_samples = shape[0]
             num_features = shape[1]*shape[2]*shape[3]*shape[4]
             predictors = predictors.transpose((0, 4, 1, 2, 3))
+            if agg is not None:
+                num_features //= shape[4]
+                predictors = _conv_agg(predictors, agg, axis=1)
+                input_shape = input_shape[1:]
             predictors = predictors.reshape((num_samples,) + (num_features,))
         else:
             input_shape = (shape[4],) + (shape[1],) + (shape[3],)
             num_samples = shape[0]*shape[2]
             num_features = shape[1]*shape[3]*shape[4]
             predictors = predictors.transpose((0, 2, 4, 1, 3))
+            if agg is not None:
+                num_features //= shape[4]
+                predictors = _conv_agg(predictors, agg, axis=2)
+                input_shape = input_shape[1:]
             predictors = predictors.reshape((num_samples,) + (num_features,))
 
     return predictors, input_shape
+
+
+def combine_predictors(*arrays):
+    """
+    Combines predictors from *_to_samples methods into a single samples-by-features array. For now, does not enable
+    retention of spatial information for convolutional neural networks. Each input array must have the same sample
+    (axis 0) dimension.
+
+    :param arrays: arrays with the same first dimension to combine
+    :return: ndarray: samples by features combined array
+    """
+    new_arrays = []
+    for array in arrays:
+        if len(array.shape) < 2:
+            raise ValueError("input arrays must have at least 2 dimensions")
+        if len(array.shape) > 2:
+            new_arrays.append(array.reshape((array.shape[0], -1)))
+        else:
+            new_arrays.append(array)
+    return np.hstack(new_arrays)
