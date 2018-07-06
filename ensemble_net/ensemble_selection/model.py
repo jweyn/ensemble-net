@@ -126,7 +126,7 @@ class EnsembleSelector(object):
             member dimension. Other dimensions are considered convolutions and simply averaged.
         :param axis: int: the axis among the first m dimensions (given by ensemble_shape) of the ensemble member dim
         :param agg: method: aggregation method for combining predicted errors into one score. Should accept an 'axis'
-            kwarg.
+            kwarg. If None, then returns the raw selection scores.
         :param kwargs: passed to Keras 'predict' method
         :return: ndarray: 2-dimensional array of aggregated error score and rank of each ensemble member
         """
@@ -140,7 +140,8 @@ class EnsembleSelector(object):
             axis = ens_size - 1
         predict_shape = (np.cumprod(ensemble_shape)[-1],) + p_shape[ens_size:]
         predicted = self.predict(predictors.reshape(predict_shape), **kwargs)
-        predicted = predicted.reshape(p_shape)
+        predicted_shape = ensemble_shape + (-1,)
+        predicted = predicted.reshape(predicted_shape)
         dim_sub = 0
         for dim in range(ens_size):
             if dim != axis:
@@ -148,6 +149,8 @@ class EnsembleSelector(object):
                 dim_sub += 1
         # We should now have a ens_size-by-target_features array
         # Use the aggregation method
+        if agg is None:
+            return predicted
         agg_score = agg(predicted, axis=1)
         agg_rank = np.argsort(agg_score)
         return np.vstack((agg_score, agg_rank)).T

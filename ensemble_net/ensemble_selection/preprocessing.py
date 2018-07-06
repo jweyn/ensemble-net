@@ -414,7 +414,8 @@ def convert_ensemble_predictors_to_samples(predictors, convolved=False, split_me
 
     :param predictors: ndarray: array of predictors
     :param convolved: bool: if True, the predictors were generated with convolution != None.
-    :param split_members: bool: if False, converts the members dimension to another image "channel", like variables
+    :param split_members: bool: if False, converts the members dimension to another image "channel", like variables.
+        Individual ensemble member can be extracted back by using extract_members_from_samples.
     :return: ndarray: array of reshaped predictors; tuple: shape of feature input, for future reshaping
     """
     shape = predictors.shape
@@ -424,7 +425,7 @@ def convert_ensemble_predictors_to_samples(predictors, convolved=False, split_me
             input_shape = spatial_shape + shape[1:4]
             num_samples = shape[0]*shape[4]
             num_channels = shape[1]*shape[2]*shape[3]
-            predictors = predictors.transpose((0, 4, 5, 6, 1, 2, 3))
+            predictors = predictors.transpose((0, 4, 5, 6, 1, 3, 2))
             predictors = predictors.reshape((num_samples,) + spatial_shape + (num_channels,))
         else:
             input_shape = spatial_shape + (shape[1],) + (shape[3],)
@@ -438,7 +439,7 @@ def convert_ensemble_predictors_to_samples(predictors, convolved=False, split_me
             input_shape = spatial_shape + shape[1:4]
             num_samples = shape[0]
             num_channels = shape[1]*shape[2]*shape[3]
-            predictors = predictors.transpose((0, 4, 5, 1, 2, 3))
+            predictors = predictors.transpose((0, 4, 5, 1, 3, 2))
             predictors = predictors.reshape((num_samples,) + spatial_shape + (num_channels,))
         else:
             input_shape = spatial_shape + (shape[1],) + (shape[3],)
@@ -448,6 +449,27 @@ def convert_ensemble_predictors_to_samples(predictors, convolved=False, split_me
             predictors = predictors.reshape((num_samples,) + spatial_shape + (num_channels,))
 
     return predictors, input_shape
+
+
+def extract_members_from_samples(predictors, num_members):
+    """
+    Convert an array of ensemble predictors from convert_*_to_samples with split_members=True into an array with the
+    member dimension as the first dimension.
+
+    :param predictors: ndarray: array of predictor samples from convert_*_to_samples
+    :param num_members: int: number of ensemble members in the data
+    :return: ndarray: same array with the ensemble member dimension extracted as dim 0
+    """
+    num_members = int(num_members)
+    if len(predictors.shape) < 2:
+        raise ValueError('predictors array must be at least 2 dimensions')
+    if predictors.shape[-1] % num_members != 0:
+        raise ValueError('the last dimension of the predictors array must be divisible by the number of members')
+    new_shape = list(predictors.shape) + [num_members]
+    new_shape[-2] = predictors.shape[-1] // num_members
+    predictors = predictors.reshape(tuple(new_shape))
+    t_shape = (len(new_shape)-1,) + tuple(range(len(new_shape)-1))
+    return predictors.transpose(t_shape)
 
 
 def convert_ae_meso_predictors_to_samples(predictors, convolved=False, agg=None, split_members=False):
@@ -502,21 +524,23 @@ def convert_ae_meso_predictors_to_samples(predictors, convolved=False, agg=None,
     return predictors, input_shape
 
 
-def combine_predictors(*arrays):
+def combine_predictors(*arrays, do_reshape=True):
     """
     Combines predictors from *_to_samples methods into a single samples-by-features array. For now, does not enable
     retention of spatial information for convolutional neural networks. Each input array must have the same sample
     (axis 0) dimension.
 
     :param arrays: arrays with the same first dimension to combine
+    :param do_reshape: bool: if True, forces reshape to 2-dimensional arrays. Otherwise, results in an error if
+        concatenation along the last axis does not work.
     :return: ndarray: samples by features combined array
     """
     new_arrays = []
     for array in arrays:
         if len(array.shape) < 2:
             raise ValueError("input arrays must have at least 2 dimensions")
-        if len(array.shape) > 2:
+        if len(array.shape) > 2 and do_reshape:
             new_arrays.append(array.reshape((array.shape[0], -1)))
         else:
             new_arrays.append(array)
-    return np.hstack(new_arrays)
+    return np.concatenate(new_arrays, axis=-1)
