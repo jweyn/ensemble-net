@@ -14,6 +14,7 @@ from ensemble_net.data_tools import NCARArray, MesoWest
 from ensemble_net.util import date_to_meso_date
 from ensemble_net.verify import ae_meso
 from ensemble_net.ensemble_selection import preprocessing, model
+import numpy as np
 import pandas as pd
 import time
 import xarray as xr
@@ -37,7 +38,7 @@ lon_0 = -100.
 lon_1 = -80.
 
 # Load NCAR Ensemble data
-ensemble = NCARArray(root_directory='/Users/jweyn/Data/NCAR_Ensemble',)
+ensemble = NCARArray(root_directory='/home/disk/wave/jweyn/Data/NCAR_Ensemble',)
 ensemble.set_init_dates(init_dates)
 ensemble.forecast_hour_coord = forecast_hours  # Not good practice, but an override removes unnecessary time indices
 # ensemble.retrieve(init_dates, forecast_hours, members, get_ncar_netcdf=False, verbose=True)
@@ -67,15 +68,34 @@ forecast_predictors = preprocessing.predictors_from_ensemble(ensemble, (lon_0, l
                                                              convolution=100, convolution_step=50, verbose=True)
 error_predictors = preprocessing.predictors_from_ae_meso(error_ds, ensemble, (lon_0, lon_1), (lat_0, lat_1),
                                                          variables=verification_variables,
-                                                         convolution=100, convolution_step=50, convolution_agg='mse',
+                                                         convolution=100, convolution_step=50, convolution_agg='rmse',
                                                          verbose=True)
+# Save the raw predictors
+raw_predictor_file = 'extras/ens_sel_raw_predictors_201604.pkl'
+# preprocessing.train_data_to_pickle(raw_predictor_file, forecast_predictors, error_predictors)
+forecast_predictors, error_predictors = preprocessing.train_data_from_pickle(raw_predictor_file)
+
+
 # Targets are the 3rd time step in the error predictors
 if forecast_predictors.shape[0] < error_predictors.shape[0]:
     error_predictors = error_predictors[:forecast_predictors.shape[0]]
 ae_predictors, ae_targets = (1. * error_predictors[:, :, :, :2, :], 1. * error_predictors[:, :, :, [2], :])
+num_members = ae_predictors.shape[2]
 
 
 # Reshape the predictors and targets
+sel_fcst_predictors, spi = preprocessing.convert_ensemble_predictors_to_samples(forecast_predictors[[-1]], convolved=True,
+                                                                                split_members=True)
+sel_ae_predictors, spi = preprocessing.convert_ae_meso_predictors_to_samples(ae_predictors[[-1]], convolved=True,
+                                                                             split_members=True)
+sel_fcst_predictors = preprocessing.extract_members_from_samples(sel_fcst_predictors, num_members)
+sel_ae_predictors = preprocessing.extract_members_from_samples(sel_ae_predictors, num_members)
+sel_fcst_predictors = sel_fcst_predictors.reshape(sel_fcst_predictors.shape[:2] + (-1,))
+sel_ae_predictors = sel_ae_predictors.reshape(sel_ae_predictors.shape[:2] + (-1,))
+sel_combined_predictors = preprocessing.combine_predictors(sel_fcst_predictors, sel_ae_predictors)
+# Will have to deal with NaN more elegantly in the future
+sel_combined_predictors[np.isnan(sel_combined_predictors)] = 0.
+
 forecast_predictors, fpi = preprocessing.convert_ensemble_predictors_to_samples(forecast_predictors, convolved=True)
 ae_predictors, epi = preprocessing.convert_ae_meso_predictors_to_samples(ae_predictors, convolved=True)
 ae_targets, eti = preprocessing.convert_ae_meso_predictors_to_samples(ae_targets, convolved=True)
@@ -83,9 +103,9 @@ combined_predictors = preprocessing.combine_predictors(forecast_predictors, ae_p
 
 
 # Write pickle files
-predictor_file = 'extras/ens_sel_predictors_201604'
+predictor_file = 'extras/ens_sel_predictors_201604_rmse.pkl'
 preprocessing.train_data_to_pickle(predictor_file, combined_predictors, ae_targets)
-# combined_predictors, error_targets = preprocessing.train_data_from_pickle(predictor_file)
+# combined_predictors, ae_targets = preprocessing.train_data_from_pickle(predictor_file)
 
 
 # Remove samples with NaN
@@ -93,13 +113,14 @@ predictors, targets = preprocessing.delete_nan_samples(combined_predictors, ae_t
 
 
 # Split into train and test sets. Either random subset or last 20%.
+num_samples = predictors.shape[0]
+num_outputs = targets.shape[1]
 # p_train, p_test, t_train, t_test = train_test_split(predictors, targets, test_size=0.2)
-num_samples = combined_predictors.shape[0]
 split = -1*num_samples//5
-p_train = combined_predictors[:split]
-p_test = combined_predictors[split:]
-t_train = ae_targets[:split]
-t_test = ae_targets[split:]
+p_train = predictors[:split]
+p_test = predictors[split:]
+t_train = targets[:split]
+t_test = targets[split:]
 
 
 # Build an ensemble selection model
@@ -114,7 +135,7 @@ layers = (
         'activation': 'relu'
     }),
     ('Dropout', (0.25,), {}),
-    ('Dense', (128,), {
+    ('Dense', (num_outputs,), {
         'activation': 'linear'
     })
 )
@@ -130,4 +151,9 @@ score = selector.evaluate(p_test, t_test, verbose=0)
 print("\nTrain time -- %s seconds --" % (end_time - start_time))
 print('Test loss:', score[0])
 print('Test mean absolute error:', score[1])
+
+
+# Do a model selection
+selection = selector.select(sel_combined_predictors, sel_combined_predictors.shape[:2])
+print(selection)
 
