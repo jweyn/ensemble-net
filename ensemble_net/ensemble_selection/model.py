@@ -15,8 +15,10 @@ future.
 import keras
 import keras.layers
 import numpy as np
+import pickle
 from keras.models import Sequential
 from ..util import get_from_class
+from .verify import rank
 
 
 class EnsembleSelector(object):
@@ -118,6 +120,7 @@ class EnsembleSelector(object):
         """
         Make a prediction from the predictors for an ensemble, and determine which ensemble member yields the least
         error.
+        TODO: add support for init_date dimension as well
 
         :param predictors: ndarray: array of predictor data. The first m dimensions must match the shape given by
             ensemble_shape, while the remaining dimensions must match the expected feature input shape of the fitted
@@ -152,5 +155,5 @@ class EnsembleSelector(object):
         if agg is None:
             return predicted
         agg_score = agg(predicted, axis=1)
-        agg_rank = np.argsort(agg_score)
+        agg_rank = rank(agg_score)
         return np.vstack((agg_score, agg_rank)).T

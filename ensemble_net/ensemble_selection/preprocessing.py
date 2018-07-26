@@ -451,27 +451,6 @@ def convert_ensemble_predictors_to_samples(predictors, convolved=False, split_me
     return predictors, input_shape
 
 
-def extract_members_from_samples(predictors, num_members):
-    """
-    Convert an array of ensemble predictors from convert_*_to_samples with split_members=True into an array with the
-    member dimension as the first dimension.
-
-    :param predictors: ndarray: array of predictor samples from convert_*_to_samples
-    :param num_members: int: number of ensemble members in the data
-    :return: ndarray: same array with the ensemble member dimension extracted as dim 0
-    """
-    num_members = int(num_members)
-    if len(predictors.shape) < 2:
-        raise ValueError('predictors array must be at least 2 dimensions')
-    if predictors.shape[-1] % num_members != 0:
-        raise ValueError('the last dimension of the predictors array must be divisible by the number of members')
-    new_shape = list(predictors.shape) + [num_members]
-    new_shape[-2] = predictors.shape[-1] // num_members
-    predictors = predictors.reshape(tuple(new_shape))
-    t_shape = (len(new_shape)-1,) + tuple(range(len(new_shape)-1))
-    return predictors.transpose(t_shape)
-
-
 def convert_ae_meso_predictors_to_samples(predictors, convolved=False, agg=None, split_members=False):
     """
     Convert an array from predictors_from_ensemble into a samples-by-features array.
@@ -524,6 +503,28 @@ def convert_ae_meso_predictors_to_samples(predictors, convolved=False, agg=None,
     return predictors, input_shape
 
 
+def extract_members_from_samples(predictors, num_members):
+    """
+    Convert an array of ensemble predictors from convert_*_to_samples with split_members=True into an array with the
+    member dimension as the first dimension.
+    TODO: add support for init_date dimension as well
+
+    :param predictors: ndarray: array of predictor samples from convert_*_to_samples
+    :param num_members: int: number of ensemble members in the data
+    :return: ndarray: same array with the ensemble member dimension extracted as dim 0
+    """
+    num_members = int(num_members)
+    if len(predictors.shape) < 2:
+        raise ValueError('predictors array must be at least 2 dimensions')
+    if predictors.shape[-1] % num_members != 0:
+        raise ValueError('the last dimension of the predictors array must be divisible by the number of members')
+    new_shape = list(predictors.shape) + [num_members]
+    new_shape[-2] = predictors.shape[-1] // num_members
+    predictors = predictors.reshape(tuple(new_shape))
+    t_shape = (len(new_shape)-1,) + tuple(range(len(new_shape)-1))
+    return predictors.transpose(t_shape)
+
+
 def combine_predictors(*arrays, do_reshape=True):
     """
     Combines predictors from *_to_samples methods into a single samples-by-features array. For now, does not enable
@@ -544,3 +545,37 @@ def combine_predictors(*arrays, do_reshape=True):
         else:
             new_arrays.append(array)
     return np.concatenate(new_arrays, axis=-1)
+
+
+def format_select_predictors(forecast, ae_meso, radar=None, convolved=False, num_members=10):
+    """
+    Formats a combination of ensemble forecast, error from ae_meso, and radar image/error predictors into an array
+    shape suitable for input into the EnsembleSelector's 'select' method. Other than features, the arrays should have
+    matching dimensions.
+
+    :param forecast: ndarray: array of ensemble forecast predictors
+    :param ae_meso: ndarray: array of ae_meso predictors
+    :param radar: ndarray: array of radar predictors
+    :param convolved: bool: whether the predictors were generated with convolution
+    :param num_members: int: number of ensemble members for the selection
+    :return: ndarray, tuple: formatted predictors, shape for 'ensemble_shape' parameter of 'select' method
+    """
+    sel_fcst_predictors, spi = convert_ensemble_predictors_to_samples(forecast, convolved=convolved, split_members=True)
+    sel_ae_predictors, spi = convert_ae_meso_predictors_to_samples(ae_meso, convolved=convolved, split_members=True)
+    if radar is not None:
+        sel_rad_predictors, spi = convert_ae_meso_predictors_to_samples(radar, convolved=convolved, split_members=True)
+    sel_fcst_predictors = extract_members_from_samples(sel_fcst_predictors, num_members)
+    sel_ae_predictors = extract_members_from_samples(sel_ae_predictors, num_members)
+    if radar is not None:
+        sel_rad_predictors = extract_members_from_samples(sel_rad_predictors, num_members)
+    sel_fcst_predictors = sel_fcst_predictors.reshape(sel_fcst_predictors.shape[:2] + (-1,))
+    sel_ae_predictors = sel_ae_predictors.reshape(sel_ae_predictors.shape[:2] + (-1,))
+    if radar is not None:
+        sel_rad_predictors = sel_rad_predictors.reshape(sel_rad_predictors.shape[:2] + (-1,))
+        sel_combined_predictors = combine_predictors(sel_fcst_predictors, sel_ae_predictors, sel_rad_predictors,
+                                                     do_reshape=False)
+    else:
+        sel_combined_predictors = combine_predictors(sel_fcst_predictors, sel_ae_predictors, do_reshape=False)
+    # TODO: will have to deal with NaN more elegantly in the future. Probably a "mask" array.
+    sel_combined_predictors[np.isnan(sel_combined_predictors)] = 0.5
+    return sel_combined_predictors, sel_combined_predictors.shape[:2]
