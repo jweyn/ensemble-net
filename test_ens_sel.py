@@ -13,10 +13,11 @@ NCAR ensemble forecast at individual stations.
 from ensemble_net.data_tools import NCARArray, MesoWest
 from ensemble_net.util import date_to_meso_date
 from ensemble_net.verify import ae_meso
-from ensemble_net.ensemble_selection import preprocessing, model
+from ensemble_net.ensemble_selection import preprocessing, model, verify
 import numpy as np
 import pandas as pd
 import time
+import pickle
 import xarray as xr
 from datetime import datetime, timedelta
 
@@ -30,6 +31,7 @@ forecast_hours = list(range(0, 25, 12))
 members = list(range(1, 11))
 forecast_variables = ('TMP2', 'DPT2', 'MSLP', 'CAPE')
 verification_variables = ('TMP2', 'DPT2', 'MSLP')
+select_days = [-2]
 
 # Subset with grid parameters
 lat_0 = 25.
@@ -37,12 +39,25 @@ lat_1 = 40.
 lon_0 = -100.
 lon_1 = -80.
 
+# If enabled, this option retrieves the forecast data from the NCAR server. Disable if data has already been processed
+# by this script or a different one.
+retrieve_forecast_data = False
+# If enabled, this option loads data from files instead of performing calculations again.
+load_existing_processed_data = True
+ae_meso_file = 'extras/mesowest-error-201604.nc'
+raw_predictor_file = 'extras/ens_sel_raw_predictors_201604.pkl'
+training_file = 'extras/ens_sel_predictors_201604_rmse.pkl'
+model_file = 'extras/test_selector.pkl'
+
+
 # Load NCAR Ensemble data
 ensemble = NCARArray(root_directory='/home/disk/wave/jweyn/Data/NCAR_Ensemble',)
 ensemble.set_init_dates(init_dates)
 ensemble.forecast_hour_coord = forecast_hours  # Not good practice, but an override removes unnecessary time indices
-# ensemble.retrieve(init_dates, forecast_hours, members, get_ncar_netcdf=False, verbose=True)
-# ensemble.write(variables, forecast_hours=forecast_hours, members=members, use_ncar_netcdf=False, verbose=True)
+if retrieve_forecast_data:
+    ensemble.retrieve(init_dates, forecast_hours, members, get_ncar_netcdf=False, verbose=True)
+    ensemble.write(forecast_variables, forecast_hours=forecast_hours, members=members, use_ncar_netcdf=False,
+                   verbose=True)
 ensemble.load(coords=[], autoclose=True,
               chunks={'member': 10, 'time': 12, 'south_north': 100, 'west_east': 100})
 
@@ -50,62 +65,66 @@ ensemble.load(coords=[], autoclose=True,
 bbox = '%s,%s,%s,%s' % (lon_0, lat_0, lon_1, lat_1)
 meso_start_date = date_to_meso_date(start_init_date - timedelta(hours=1))
 meso_end_date = date_to_meso_date(end_init_date + timedelta(hours=max(forecast_hours)))
-meso = MesoWest(token='038cd42021bc46faa8d66fd59a8b72ab')
+meso = MesoWest(token='')
 meso.load_metadata(bbox=bbox, network='1')
-# meso.load(meso_start_date, meso_end_date, chunks='day', file='mesowest-201604.pkl', verbose=True,
-#           bbox=bbox, network='1', vars=variables, units='temp|K', hfmetars='0')
+if not load_existing_processed_data:
+    meso.load(meso_start_date, meso_end_date, chunks='day', file='mesowest-201604.pkl', verbose=True,
+              bbox=bbox, network='1', vars=verification_variables, units='temp|K', hfmetars='0')
 
 
 # Generate the forecast errors relative to observations
-# error_ds = ae_meso(ensemble, meso)
-# error_ds.to_netcdf('extras/mesowest-error-201604.nc')
-error_ds = xr.open_dataset('extras/mesowest-error-201604.nc')
+if load_existing_processed_data:
+    error_ds = xr.open_dataset(ae_meso_file)
+else:
+    error_ds = ae_meso(ensemble, meso)
+    error_ds.to_netcdf(ae_meso_file)
 
 
 # Generate the predictors and targets
-forecast_predictors = preprocessing.predictors_from_ensemble(ensemble, (lon_0, lon_1), (lat_0, lat_1),
-                                                             variables=forecast_variables,
-                                                             convolution=100, convolution_step=50, verbose=True)
-error_predictors = preprocessing.predictors_from_ae_meso(error_ds, ensemble, (lon_0, lon_1), (lat_0, lat_1),
-                                                         variables=verification_variables,
-                                                         convolution=100, convolution_step=50, convolution_agg='rmse',
-                                                         verbose=True)
-# Save the raw predictors
-raw_predictor_file = 'extras/ens_sel_raw_predictors_201604.pkl'
-# preprocessing.train_data_to_pickle(raw_predictor_file, forecast_predictors, error_predictors)
-forecast_predictors, error_predictors = preprocessing.train_data_from_pickle(raw_predictor_file)
+if load_existing_processed_data:
+    raw_forecast_predictors, raw_error_predictors = preprocessing.train_data_from_pickle(raw_predictor_file)
+else:
+    raw_forecast_predictors = preprocessing.predictors_from_ensemble(ensemble, (lon_0, lon_1), (lat_0, lat_1),
+                                                                     variables=forecast_variables,
+                                                                     convolution=100, convolution_step=50, verbose=True)
+    raw_error_predictors = preprocessing.predictors_from_ae_meso(error_ds, ensemble, (lon_0, lon_1), (lat_0, lat_1),
+                                                                 variables=verification_variables,
+                                                                 convolution=100, convolution_step=50,
+                                                                 convolution_agg='rmse', verbose=True)
+    # Check that forecast and error predictors are the same sample (init_date) length
+    if raw_forecast_predictors.shape[0] < raw_error_predictors.shape[0]:
+        raw_error_predictors = raw_error_predictors[:raw_forecast_predictors.shape[0]]
+    # Save the raw predictors
+    preprocessing.train_data_to_pickle(raw_predictor_file, raw_forecast_predictors, raw_error_predictors)
 
 
-# Targets are the 3rd time step in the error predictors
-if forecast_predictors.shape[0] < error_predictors.shape[0]:
-    error_predictors = error_predictors[:forecast_predictors.shape[0]]
-ae_predictors, ae_targets = (1. * error_predictors[:, :, :, :2, :], 1. * error_predictors[:, :, :, [2], :])
-num_members = ae_predictors.shape[2]
+# Targets are the 3rd time step in the error predictors. Faster to do it this way than with separate calls to the
+# predictors_from_ae_meso method for predictor and target data.
+raw_error_predictors, ae_targets = (1. * raw_error_predictors[:, :, :, :2, :],
+                                    1. * raw_error_predictors[:, :, :, [2], :])
+ae_verif = 1. * ae_targets
+ae_verif_12 = 1. * raw_error_predictors[:, :, :, [1], :]
+num_members = raw_error_predictors.shape[2]
 
 
-# Reshape the predictors and targets
-sel_fcst_predictors, spi = preprocessing.convert_ensemble_predictors_to_samples(forecast_predictors[[-1]], convolved=True,
-                                                                                split_members=True)
-sel_ae_predictors, spi = preprocessing.convert_ae_meso_predictors_to_samples(ae_predictors[[-1]], convolved=True,
-                                                                             split_members=True)
-sel_fcst_predictors = preprocessing.extract_members_from_samples(sel_fcst_predictors, num_members)
-sel_ae_predictors = preprocessing.extract_members_from_samples(sel_ae_predictors, num_members)
-sel_fcst_predictors = sel_fcst_predictors.reshape(sel_fcst_predictors.shape[:2] + (-1,))
-sel_ae_predictors = sel_ae_predictors.reshape(sel_ae_predictors.shape[:2] + (-1,))
-sel_combined_predictors = preprocessing.combine_predictors(sel_fcst_predictors, sel_ae_predictors)
-# Will have to deal with NaN more elegantly in the future
-sel_combined_predictors[np.isnan(sel_combined_predictors)] = 0.
+# Okay, we now have the essential data: all of our convolved predictor and target data. These data will undergo just a
+# bit more processing to make them suitable for training, where we need the convolution to be in the sample dimension.
+# For running the ensemble selection, however, we need to aggregate the convolutions of each member and only come up
+# with one answer for each init_date. For this, we have a preprocessing method that takes in ensemble forecast
+# predictors, ae_meso predictors, and radar predictors and reformats into arrays suitable for the 'select' method.
 
-forecast_predictors, fpi = preprocessing.convert_ensemble_predictors_to_samples(forecast_predictors, convolved=True)
-ae_predictors, epi = preprocessing.convert_ae_meso_predictors_to_samples(ae_predictors, convolved=True)
+# Get the selection predictors and verification
+select_predictors, select_shape = preprocessing.format_select_predictors(raw_forecast_predictors[select_days],
+                                                                         raw_error_predictors[select_days],
+                                                                         None, convolved=True, num_members=num_members)
+select_verif = verify.select_verification(ae_verif[select_days], select_shape, convolved=True, agg=verify.stdmean)
+select_verif_12 = verify.select_verification(ae_verif_12[select_days], select_shape, convolved=True, agg=verify.stdmean)
+
+# Final formatting of the training predictors. This appropriately converts convolutions to sample dimension.
+forecast_predictors, fpi = preprocessing.convert_ensemble_predictors_to_samples(raw_forecast_predictors, convolved=True)
+ae_predictors, epi = preprocessing.convert_ae_meso_predictors_to_samples(raw_error_predictors, convolved=True)
 ae_targets, eti = preprocessing.convert_ae_meso_predictors_to_samples(ae_targets, convolved=True)
 combined_predictors = preprocessing.combine_predictors(forecast_predictors, ae_predictors)
-
-
-# Write pickle files
-predictor_file = 'extras/ens_sel_predictors_201604_rmse.pkl'
-preprocessing.train_data_to_pickle(predictor_file, combined_predictors, ae_targets)
-# combined_predictors, ae_targets = preprocessing.train_data_from_pickle(predictor_file)
 
 
 # Remove samples with NaN
@@ -152,8 +171,33 @@ print("\nTrain time -- %s seconds --" % (end_time - start_time))
 print('Test loss:', score[0])
 print('Test mean absolute error:', score[1])
 
+with open(model_file, 'wb') as f:
+    pickle.dump(selector, f, protocol=pickle.HIGHEST_PROTOCOL)
+
 
 # Do a model selection
-selection = selector.select(sel_combined_predictors, sel_combined_predictors.shape[:2])
-print(selection)
+selection = selector.select(select_predictors, select_shape, agg=verify.stdmean)
 
+# Verification against targets
+scores = np.vstack((selection[:, 0], select_verif[:, 0], select_verif_12[:, 0])).T
+ranks = np.vstack((selection[:, 1], select_verif[:, 1], select_verif_12[:, 1])).T
+
+
+# for day in range(len(init_dates)):
+#     select_days = [day]
+#     print('\nDay %d: %s' % (day+1, init_dates[day]))
+#     select_predictors, select_shape = preprocessing.format_select_predictors(raw_forecast_predictors[select_days],
+#                                                                              raw_error_predictors[select_days],
+#                                                                              None, convolved=True,
+#                                                                              num_members=num_members)
+#     select_verif = verify.select_verification(ae_verif[select_days], select_shape, convolved=True, agg=verify.stdmean)
+#     select_verif_12 = verify.select_verification(ae_verif_12[select_days], select_shape, convolved=True,
+#                                                  agg=verify.stdmean)
+#     selection = selector.select(select_predictors, select_shape, agg=verify.stdmean)
+#     ranks = np.vstack((selection[:, 1], select_verif[:, 1], select_verif_12[:, 1])).T
+#     scores = np.vstack((selection[:, 0], select_verif[:, 0], select_verif_12[:, 0])).T
+#     print(ranks)
+#     print('MSE of rank relative to verification: %f' % np.mean((ranks[:, 0] - ranks[:, 1]) ** 2.))
+#     print('MSE of rank relative to 12-hour error: %f' % np.mean((ranks[:, 0] - ranks[:, 2]) ** 2.))
+#     print('MSE of score relative to verification: %f' % np.mean((scores[:, 0] - scores[:, 1]) ** 2.))
+#     print('MSE of score relative to 12-hour error: %f' % np.mean((scores[:, 0] - scores[:, 2]) ** 2.))
