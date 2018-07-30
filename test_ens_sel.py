@@ -24,14 +24,14 @@ from datetime import datetime, timedelta
 
 # Ensemble data parameters
 start_init_date = datetime(2016, 4, 1)
-end_init_date = datetime(2016, 4, 10)
+end_init_date = datetime(2016, 4, 30)
 pd_date_range = pd.date_range(start=start_init_date, end=end_init_date, freq='D')
 init_dates = list(pd_date_range.to_pydatetime())
 forecast_hours = list(range(0, 25, 12))
 members = list(range(1, 11))
 forecast_variables = ('TMP2', 'DPT2', 'MSLP', 'CAPE')
 verification_variables = ('TMP2', 'DPT2', 'MSLP')
-select_days = [-2]
+select_days = [-1]
 
 # Subset with grid parameters
 lat_0 = 25.
@@ -44,10 +44,13 @@ lon_1 = -80.
 retrieve_forecast_data = False
 # If enabled, this option loads data from files instead of performing calculations again.
 load_existing_processed_data = True
+meso_file = 'extras/mesowest-201604.pkl'
 ae_meso_file = 'extras/mesowest-error-201604.nc'
-raw_predictor_file = 'extras/ens_sel_raw_predictors_201604.pkl'
-training_file = 'extras/ens_sel_predictors_201604_rmse.pkl'
+raw_predictor_file = 'extras/ens_sel_raw_predictors_20160430.pkl'
 model_file = 'extras/test_selector.pkl'
+
+# Option to delete variables to reduce RAM usage
+reduce_ram = False
 
 
 # Load NCAR Ensemble data
@@ -68,7 +71,7 @@ meso_end_date = date_to_meso_date(end_init_date + timedelta(hours=max(forecast_h
 meso = MesoWest(token='')
 meso.load_metadata(bbox=bbox, network='1')
 if not load_existing_processed_data:
-    meso.load(meso_start_date, meso_end_date, chunks='day', file='mesowest-201604.pkl', verbose=True,
+    meso.load(meso_start_date, meso_end_date, chunks='day', file=meso_file, verbose=True,
               bbox=bbox, network='1', vars=verification_variables, units='temp|K', hfmetars='0')
 
 
@@ -76,8 +79,11 @@ if not load_existing_processed_data:
 if load_existing_processed_data:
     error_ds = xr.open_dataset(ae_meso_file)
 else:
-    error_ds = ae_meso(ensemble, meso)
-    error_ds.to_netcdf(ae_meso_file)
+    # error_ds = ae_meso(ensemble, meso)
+    # error_ds.to_netcdf(ae_meso_file)
+    error_ds = xr.open_dataset(ae_meso_file)
+    if reduce_ram:
+        meso = None
 
 
 # Generate the predictors and targets
@@ -122,9 +128,16 @@ select_verif_12 = verify.select_verification(ae_verif_12[select_days], select_sh
 
 # Final formatting of the training predictors. This appropriately converts convolutions to sample dimension.
 forecast_predictors, fpi = preprocessing.convert_ensemble_predictors_to_samples(raw_forecast_predictors, convolved=True)
+if reduce_ram:
+    raw_forecast_predictors = None
 ae_predictors, epi = preprocessing.convert_ae_meso_predictors_to_samples(raw_error_predictors, convolved=True)
+if reduce_ram:
+    raw_error_predictors = None
 ae_targets, eti = preprocessing.convert_ae_meso_predictors_to_samples(ae_targets, convolved=True)
 combined_predictors = preprocessing.combine_predictors(forecast_predictors, ae_predictors)
+if reduce_ram:
+    forecast_predictors = None
+    ae_predictors = None
 
 
 # Remove samples with NaN
@@ -183,21 +196,22 @@ scores = np.vstack((selection[:, 0], select_verif[:, 0], select_verif_12[:, 0]))
 ranks = np.vstack((selection[:, 1], select_verif[:, 1], select_verif_12[:, 1])).T
 
 
-# for day in range(len(init_dates)):
-#     select_days = [day]
-#     print('\nDay %d: %s' % (day+1, init_dates[day]))
-#     select_predictors, select_shape = preprocessing.format_select_predictors(raw_forecast_predictors[select_days],
-#                                                                              raw_error_predictors[select_days],
-#                                                                              None, convolved=True,
-#                                                                              num_members=num_members)
-#     select_verif = verify.select_verification(ae_verif[select_days], select_shape, convolved=True, agg=verify.stdmean)
-#     select_verif_12 = verify.select_verification(ae_verif_12[select_days], select_shape, convolved=True,
-#                                                  agg=verify.stdmean)
-#     selection = selector.select(select_predictors, select_shape, agg=verify.stdmean)
-#     ranks = np.vstack((selection[:, 1], select_verif[:, 1], select_verif_12[:, 1])).T
-#     scores = np.vstack((selection[:, 0], select_verif[:, 0], select_verif_12[:, 0])).T
-#     print(ranks)
-#     print('MSE of rank relative to verification: %f' % np.mean((ranks[:, 0] - ranks[:, 1]) ** 2.))
-#     print('MSE of rank relative to 12-hour error: %f' % np.mean((ranks[:, 0] - ranks[:, 2]) ** 2.))
-#     print('MSE of score relative to verification: %f' % np.mean((scores[:, 0] - scores[:, 1]) ** 2.))
-#     print('MSE of score relative to 12-hour error: %f' % np.mean((scores[:, 0] - scores[:, 2]) ** 2.))
+# Verify all days
+for day in range(len(init_dates)):
+    select_days = [day]
+    print('\nDay %d: %s' % (day+1, init_dates[day]))
+    select_predictors, select_shape = preprocessing.format_select_predictors(raw_forecast_predictors[select_days],
+                                                                             raw_error_predictors[select_days],
+                                                                             None, convolved=True,
+                                                                             num_members=num_members)
+    select_verif = verify.select_verification(ae_verif[select_days], select_shape, convolved=True, agg=verify.stdmean)
+    select_verif_12 = verify.select_verification(ae_verif_12[select_days], select_shape, convolved=True,
+                                                 agg=verify.stdmean)
+    selection = selector.select(select_predictors, select_shape, agg=verify.stdmean)
+    ranks = np.vstack((selection[:, 1], select_verif[:, 1], select_verif_12[:, 1])).T
+    scores = np.vstack((selection[:, 0], select_verif[:, 0], select_verif_12[:, 0])).T
+    print(ranks)
+    print('MSE of rank relative to verification: %f' % np.mean((ranks[:, 0] - ranks[:, 1]) ** 2.))
+    print('MSE of rank relative to 12-hour error: %f' % np.mean((ranks[:, 0] - ranks[:, 2]) ** 2.))
+    print('MSE of score relative to verification: %f' % np.mean((scores[:, 0] - scores[:, 1]) ** 2.))
+    print('MSE of score relative to 12-hour error: %f' % np.mean((scores[:, 0] - scores[:, 2]) ** 2.))
