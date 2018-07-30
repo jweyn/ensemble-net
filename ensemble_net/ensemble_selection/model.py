@@ -17,7 +17,7 @@ import keras.layers
 import numpy as np
 import pickle
 from keras.models import Sequential
-from ..util import get_from_class
+from ..util import get_from_class, make_keras_picklable
 from .verify import rank
 
 
@@ -40,6 +40,7 @@ class EnsembleSelector(object):
         :param compile_kwargs: kwargs passed to the 'compile' method of the Keras model
         :return:
         """
+        make_keras_picklable()
         if type(layers) not in [list, tuple]:
             raise TypeError("'layers' argument must be a tuple")
         self.model = Sequential()

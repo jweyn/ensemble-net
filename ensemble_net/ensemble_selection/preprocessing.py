@@ -165,9 +165,10 @@ def predictors_from_ensemble(ensemble, xlim, ylim, variables=(), latlon=True, fo
     if num_x < 1 or num_y < 1:
         raise ValueError("invalid 'xlim' or 'ylim'; must be monotonically increasing")
     num_var = len(variables)
-    num_samples = len(grand_time_list)
+    num_samples = len(grand_index_list)
     num_members = ensemble.Dataset.dims['member']
     num_f_hours = len(forecast_hours)
+    grand_index_array = np.array(grand_index_list, dtype=object)
     if convolution is None:
         predictors = np.full((num_samples, num_var, num_members, num_f_hours, num_y, num_x,), np.nan, dtype=np.float32)
     else:
@@ -183,28 +184,35 @@ def predictors_from_ensemble(ensemble, xlim, ylim, variables=(), latlon=True, fo
     print('predictors_from_ensemble: strap in; this is gonna take a while.')
     if verbose:
         print('predictors_from_ensemble: dropping unnecessary variables')
-    new_ds = ensemble.Dataset.copy()
-    for key in new_ds.data_vars.keys():
+    reduced_ds = ensemble.Dataset.copy()
+    for key in reduced_ds.data_vars.keys():
         if key not in variables:
-            new_ds = new_ds.drop(key)
-    if verbose:
-        print('predictors_from_ensemble: reading all the data in the spatial subset')
-    new_ds = new_ds.isel(south_north=range(y1, y2), west_east=range(x1, x2))
-    new_ds.load()
-    for v in range(num_var):
-        variable = variables[v]
-        for sample in range(num_samples):
-            if verbose:
-                print('predictors_from_ensemble: variable %d of %d, sample %d of %d' % (v+1, num_var, sample+1,
-                                                                                        num_samples))
-            ind = grand_index_list[sample]
-            field = new_ds[variable].isel(init_date=ind[0], time=ind[1]).values.reshape((num_members, num_f_hours,
-                                                                                         num_y, num_x))
-            if convolution is None:
-                predictors[sample, v, ...] = field
-            else:
-                new_field = _convolve(field, convolution, convolution_step)
-                predictors[sample, v, ...] = new_field
+            reduced_ds = reduced_ds.drop(key)
+    # Split the samples by their init_dates. This requires manual counting, but makes loading of data much less
+    # memory-intensive. If only xarray could load properly from the mf_dataset...
+    sample_count = -1
+    for init in range(num_init):
+        init_date = ensemble.dataset_init_dates[init]
+        if verbose:
+            print('predictors_from_ensemble: reading all the data for init %s' % init_date)
+        new_ds = None
+        new_ds = reduced_ds.isel(init_date=init, south_north=range(y1, y2), west_east=range(x1, x2))
+        new_ds.load()
+        part_index_array = grand_index_array[grand_index_array[:, 0] == init]
+        for sample in range(len(part_index_array)):
+            sample_count += 1
+            for v in range(num_var):
+                variable = variables[v]
+                if verbose:
+                    print('predictors_from_ensemble: variable %d of %d, sample %d of %d' %
+                          (v+1, num_var, sample_count+1, num_samples))
+                ind = part_index_array[sample]
+                field = new_ds[variable].isel(time=ind[1]).values.reshape((num_members, num_f_hours, num_y, num_x))
+                if convolution is None:
+                    predictors[sample_count, v, ...] = field
+                else:
+                    new_field = _convolve(field, convolution, convolution_step)
+                    predictors[sample_count, v, ...] = new_field
 
     # Transpose the array if using convolutions, so that y,x are the last 2 dims
     if convolution is not None:
