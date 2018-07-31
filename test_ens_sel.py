@@ -11,13 +11,12 @@ NCAR ensemble forecast at individual stations.
 """
 
 from ensemble_net.data_tools import NCARArray, MesoWest
-from ensemble_net.util import date_to_meso_date
+from ensemble_net.util import date_to_meso_date, save_model
 from ensemble_net.verify import ae_meso
 from ensemble_net.ensemble_selection import preprocessing, model, verify
 import numpy as np
 import pandas as pd
 import time
-import pickle
 import xarray as xr
 from datetime import datetime, timedelta
 
@@ -47,7 +46,7 @@ load_existing_processed_data = True
 meso_file = 'extras/mesowest-201604.pkl'
 ae_meso_file = 'extras/mesowest-error-201604.nc'
 raw_predictor_file = 'extras/ens_sel_raw_predictors_20160430.pkl'
-model_file = 'extras/test_selector.pkl'
+model_file = 'extras/test_selector'
 
 # Option to delete variables to reduce RAM usage
 reduce_ram = False
@@ -163,7 +162,8 @@ layers = (
     #     'input_shape': input_shape
     # }),
     ('Dense', (512,), {
-        'activation': 'relu'
+        'activation': 'relu',
+        'input_shape': p_train.shape[1:]
     }),
     ('Dropout', (0.25,), {}),
     ('Dense', (num_outputs,), {
@@ -175,7 +175,7 @@ selector.build_model(layers=layers, loss='mse', optimizer='adam', metrics=['mae'
 
 # Train an evaluate the model
 start_time = time.time()
-selector.fit(p_train, t_train, batch_size=64, epochs=6, verbose=1, validation_data=(p_test, t_test))
+selector.fit(p_train, t_train, batch_size=64, epochs=1, verbose=1, validation_data=(p_test, t_test))
 end_time = time.time()
 
 score = selector.evaluate(p_test, t_test, verbose=0)
@@ -183,8 +183,7 @@ print("\nTrain time -- %s seconds --" % (end_time - start_time))
 print('Test loss:', score[0])
 print('Test mean absolute error:', score[1])
 
-with open(model_file, 'wb') as f:
-    pickle.dump(selector, f, protocol=pickle.HIGHEST_PROTOCOL)
+save_model(selector, model_file)
 
 
 # Do a model selection
