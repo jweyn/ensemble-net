@@ -79,9 +79,8 @@ if not load_existing_processed_data:
 if load_existing_processed_data:
     error_ds = xr.open_dataset(ae_meso_file)
 else:
-    # error_ds = ae_meso(ensemble, meso)
-    # error_ds.to_netcdf(ae_meso_file)
-    error_ds = xr.open_dataset(ae_meso_file)
+    error_ds = ae_meso(ensemble, meso)
+    error_ds.to_netcdf(ae_meso_file)
     if reduce_ram:
         meso = None
 
