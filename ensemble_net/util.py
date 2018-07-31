@@ -10,8 +10,10 @@ Ensemble-net utilities.
 
 from datetime import datetime
 import types
+import pickle
 import tempfile
 import keras.models
+from copy import deepcopy
 
 
 # ==================================================================================================================== #
@@ -86,6 +88,35 @@ def get_from_class(module_name, class_name):
     mod = __import__(module_name, fromlist=[class_name])
     class_obj = getattr(mod, class_name)
     return class_obj
+
+
+def save_model(model, file_name):
+    """
+    Saves a class instance with a 'model' attribute to disk. Creates two files: one pickle file containing no model
+    saved as ${file_name}.pkl and one for the model saved as ${file_name}.keras. Use the function load_model() to load
+    a model saved with this method.
+
+    :param model: model instance (with a 'model' attribute) to save
+    :param file_name: str: base name of save files
+    :return:
+    """
+    model.model.save('%s.keras' % file_name)
+    model_copy = deepcopy(model)
+    model_copy.model = None
+    with open('%s.pkl' % file_name, 'wb') as f:
+        pickle.dump(model_copy, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+def load_model(file_name):
+    """
+    Loads a model saved to disk with the 'save_model' method.
+
+    :param file_name: str: base name of save files
+    :return: model: loaded object
+    """
+    with open('%s.pkl' % file_name, 'rb') as f:
+        model = pickle.load(f)
+    model.model = keras.models.load_model('%s.keras' % file_name, compile=True)
 
 
 # ==================================================================================================================== #
