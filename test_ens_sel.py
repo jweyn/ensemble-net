@@ -51,6 +51,9 @@ model_file = 'extras/test_selector'
 # Option to delete variables to reduce RAM usage
 reduce_ram = False
 
+# Use multiple GPUs
+n_gpu = 2
+
 
 # Load NCAR Ensemble data
 ensemble = NCARArray(root_directory='/home/disk/wave/jweyn/Data/NCAR_Ensemble',)
@@ -170,7 +173,7 @@ layers = (
         'activation': 'linear'
     })
 )
-selector.build_model(layers=layers, loss='mse', optimizer='adam', metrics=['mae'])
+selector.build_model(layers=layers, gpus=n_gpu, loss='mse', optimizer='adam', metrics=['mae'])
 
 
 # Train an evaluate the model
