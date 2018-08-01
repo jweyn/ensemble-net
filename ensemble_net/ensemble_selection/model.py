@@ -15,8 +15,8 @@ future.
 import keras
 import keras.layers
 import numpy as np
-import pickle
 import keras.models
+from keras.utils import multi_gpu_model
 from ..util import get_from_class, make_keras_picklable
 from .verify import rank
 
@@ -29,21 +29,24 @@ class EnsembleSelector(object):
         self.scaler_type = scaler_type
         self.scaler = None
         self.model = None
+        self.is_parallel = False
 
-    def build_model(self, layers=(), **compile_kwargs):
+    def build_model(self, layers=(), gpus=1, **compile_kwargs):
         """
         Build a Keras Sequential model using the specified layers. Each element of layers must be a tuple consisting of
         (layer_name, layer_args, layer_kwargs); that is, each tuple is the name of the layer as defined in keras.layers,
         a tuple of arguments passed to the layer, and a dictionary of kwargs passed to the layer.
 
         :param layers: tuple: tuple of (layer_name, kwargs_dict) pairs added to the model
+        :param gpus: int: number of GPU units on which to parallelize the Keras model
         :param compile_kwargs: kwargs passed to the 'compile' method of the Keras model
         :return:
         """
-        make_keras_picklable()
+        # Test the parameters
+        if type(gpus) is not int:
+            raise TypeError("'gpus' argument must be an int")
         if type(layers) not in [list, tuple]:
             raise TypeError("'layers' argument must be a tuple")
-        self.model = keras.models.Sequential()
         for l in range(len(layers)):
             layer = layers[l]
             if type(layer) not in [list, tuple]:
@@ -58,9 +61,17 @@ class EnsembleSelector(object):
                 layer[2] = {}
             if type(layer[2]) is not dict:
                 raise TypeError("the 'kwargs' element of layer %d must be a dict" % l)
+        # Self-explanatory
+        make_keras_picklable()
+        # Build a model, either on a single GPU or on a CPU to control multiple GPUs
+        self.model = keras.models.Sequential()
+        for l in range(len(layers)):
+            layer = layers[l]
             layer_class = get_from_class('keras.layers', layer[0])
             self.model.add(layer_class(*layer[1], **layer[2]))
-
+        if gpus > 1:
+            self.model = multi_gpu_model(self.model, gpus=gpus, cpu_relocation=True)
+            self.is_parallel = True
         self.model.compile(**compile_kwargs)
 
     def scaler_fit(self, X, **kwargs):
