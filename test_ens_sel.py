@@ -56,6 +56,7 @@ n_gpu = 2
 
 
 # Load NCAR Ensemble data
+print('Loading NCAR ensemble data...')
 ensemble = NCARArray(root_directory='/home/disk/wave/jweyn/Data/NCAR_Ensemble',)
 ensemble.set_init_dates(init_dates)
 ensemble.forecast_hour_coord = forecast_hours  # Not good practice, but an override removes unnecessary time indices
@@ -67,6 +68,7 @@ ensemble.load(coords=[], autoclose=True,
               chunks={'member': 10, 'time': 12, 'south_north': 100, 'west_east': 100})
 
 # Load observation data
+print('Loading MesoWest data...')
 bbox = '%s,%s,%s,%s' % (lon_0, lat_0, lon_1, lat_1)
 meso_start_date = date_to_meso_date(start_init_date - timedelta(hours=1))
 meso_end_date = date_to_meso_date(end_init_date + timedelta(hours=max(forecast_hours)))
@@ -78,6 +80,7 @@ if not load_existing_processed_data:
 
 
 # Generate the forecast errors relative to observations
+print('Loading or generating ae_meso data...')
 if load_existing_processed_data:
     error_ds = xr.open_dataset(ae_meso_file)
 else:
@@ -88,6 +91,7 @@ else:
 
 
 # Generate the predictors and targets
+print('Loading or generating raw predictors...')
 if load_existing_processed_data:
     raw_forecast_predictors, raw_error_predictors = preprocessing.train_data_from_pickle(raw_predictor_file)
 else:
@@ -119,7 +123,7 @@ num_members = raw_error_predictors.shape[2]
 # For running the ensemble selection, however, we need to aggregate the convolutions of each member and only come up
 # with one answer for each init_date. For this, we have a preprocessing method that takes in ensemble forecast
 # predictors, ae_meso predictors, and radar predictors and reformats into arrays suitable for the 'select' method.
-
+print('Formatting predictors...')
 # Get the selection predictors and verification
 select_predictors, select_shape = preprocessing.format_select_predictors(raw_forecast_predictors[select_days],
                                                                          raw_error_predictors[select_days],
@@ -157,6 +161,7 @@ t_test = targets[split:]
 
 
 # Build an ensemble selection model
+print('Building an EnsembleSelector model...')
 selector = model.EnsembleSelector()
 layers = (
     # ('Conv2D', (64,), {
@@ -176,7 +181,8 @@ layers = (
 selector.build_model(layers=layers, gpus=n_gpu, loss='mse', optimizer='adam', metrics=['mae'])
 
 
-# Train an evaluate the model
+# Train and evaluate the model
+print('Training the EnsembleSelector model...')
 start_time = time.time()
 selector.fit(p_train, t_train, batch_size=64, epochs=1, verbose=1, validation_data=(p_test, t_test))
 end_time = time.time()
