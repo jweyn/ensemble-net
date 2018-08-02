@@ -25,9 +25,11 @@ class EnsembleSelector(object):
     """
     Class containing an ensemble selection model and other processing tools for the input data.
     """
-    def __init__(self, scaler_type='MinMaxScaler'):
+    def __init__(self, scaler_type='MinMaxScaler', impute=False):
         self.scaler_type = scaler_type
         self.scaler = None
+        self.impute = impute
+        self.imputer = None
         self.model = None
         self.is_parallel = False
 
@@ -87,6 +89,19 @@ class EnsembleSelector(object):
         X_transform = self.scaler.transform(X)
         return X_transform.reshape(X_shape)
 
+    def imputer_fit(self, X, **kwargs):
+        imputer_class = get_from_class('sklearn.preprocessing', self.scaler_type)
+        self.imputer = imputer_class(missing_values=np.nan, strategy="mean", axis=0)
+        X_shape = X.shape
+        X = X.reshape((X_shape[0], -1))
+        self.imputer.fit(X)
+
+    def imputer_transform(self, X):
+        X_shape = X.shape
+        X = X.reshape((X_shape[0], -1))
+        X_transform = self.imputer.transform(X)
+        return X_transform.reshape(X_shape)
+
     def fit(self, predictors, targets, **kwargs):
         """
         Fit the EnsembleSelector model. Also performs input feature scaling.
@@ -96,11 +111,18 @@ class EnsembleSelector(object):
         :param kwargs: passed to the Keras 'fit' method
         :return:
         """
+        if self.impute:
+            self.imputer_fit(predictors)
+            predictors = self.imputer_transform(predictors)
         self.scaler_fit(predictors)
         predictors_scaled = self.scaler_transform(predictors)
         # Need to scale the validation data if it is given
         if 'validation_data' in kwargs:
-            predictors_test_scaled = self.scaler_transform(kwargs['validation_data'][0])
+            if self.impute:
+                predictors_test_scaled = self.imputer_transform(kwargs['validation_data'][0])
+                predictors_test_scaled = self.scaler_transform(predictors_test_scaled)
+            else:
+                predictors_test_scaled = self.scaler_transform(kwargs['validation_data'][0])
             kwargs['validation_data'] = (predictors_test_scaled, kwargs['validation_data'][1])
         self.model.fit(predictors_scaled, targets, **kwargs)
 
@@ -112,6 +134,8 @@ class EnsembleSelector(object):
         :param kwargs: passed to Keras 'predict' method
         :return:
         """
+        if self.impute:
+            predictors = self.imputer_transform(predictors)
         predictors_scaled = self.scaler_transform(predictors)
         predicted = self.model.predict(predictors_scaled, **kwargs)
         return predicted
@@ -124,6 +148,8 @@ class EnsembleSelector(object):
         :param kwargs: passed to Keras 'evaluate' method
         :return:
         """
+        if self.impute:
+            predictors = self.imputer_transform(predictors)
         predictors_scaled = self.scaler_transform(predictors)
         score = self.model.evaluate(predictors_scaled, targets, **kwargs)
         return score
