@@ -511,6 +511,27 @@ def convert_ae_meso_predictors_to_samples(predictors, convolved=False, agg=None,
     return predictors, input_shape
 
 
+def interpolate_ensemble_predictors(predictors, factor, **griddata_kwargs):
+    """
+    Reduces the dimensionality of the ensemble predictors by interpolating to a grid that is 'factor' times coarser
+    than the current spatial dimension for the ensemble samples.
+
+    :param predictors: ndarray: predictors from predictors_from_ensemble
+    :param factor: int: factor for grid coarsening
+    :param griddata_kwargs: passed to scipy.interpolate.griddata
+    :return: ndarray: dimensionality-reduced array of predictors
+    """
+    # For now, let's just return the 'nearest' solution
+    factor = int(factor)
+    if factor < 1:
+        raise ValueError("'factor' must be >= 1")
+    start = factor // 2
+    slices = [slice(None)] * len(predictors.shape)
+    slices[-2] = slice(start, -1, factor)
+    slices[-1] = slice(start, -1, factor)
+    return predictors[slices]
+
+
 def extract_members_from_samples(predictors, num_members):
     """
     Convert an array of ensemble predictors from convert_*_to_samples with split_members=True into an array with the
