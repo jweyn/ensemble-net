@@ -31,28 +31,39 @@ members = list(range(1, 11))
 forecast_variables = ('TMP2', 'DPT2', 'MSLP', 'CAPE')
 verification_variables = ('TMP2', 'DPT2', 'MSLP')
 select_days = [-1]
-
 # Subset with grid parameters
 lat_0 = 25.
 lat_1 = 40.
 lon_0 = -100.
 lon_1 = -80.
+grid_factor = 4
+
+# When formatting data for ingestion into the learning algorithm, we can use convolutions over the spatial data to
+# increase the number of training samples at the expense of training features. Set 'convolution' to None to disable
+# this and ignore the other parameters.
+convolution = None
+convolution_step = 50
+convolution_agg = 'rmse'
 
 # If enabled, this option retrieves the forecast data from the NCAR server. Disable if data has already been processed
 # by this script or a different one.
 retrieve_forecast_data = False
-# If enabled, this option loads data from files instead of performing calculations again.
-load_existing_processed_data = True
+# If enabled, these options load data from files instead of performing calculations again.
+load_existing_data = True
 meso_file = 'extras/mesowest-201604.pkl'
 ae_meso_file = 'extras/mesowest-error-201604.nc'
-raw_predictor_file = 'extras/ens_sel_raw_predictors_20160430.pkl'
+load_existing_predictors = True
+raw_predictor_file = 'extras/ens_sel_raw_predictors_20160430_noconv.pkl'
 model_file = 'extras/test_selector'
 
 # Option to delete variables to reduce RAM usage
 reduce_ram = False
 
+# Neural network configuration and options
+batch_size = 4
+epochs = 4
 # Use multiple GPUs
-n_gpu = 2
+n_gpu = 1
 
 
 # Load NCAR Ensemble data
@@ -74,14 +85,14 @@ meso_start_date = date_to_meso_date(start_init_date - timedelta(hours=1))
 meso_end_date = date_to_meso_date(end_init_date + timedelta(hours=max(forecast_hours)))
 meso = MesoWest(token='')
 meso.load_metadata(bbox=bbox, network='1')
-if not load_existing_processed_data:
+if not load_existing_data:
     meso.load(meso_start_date, meso_end_date, chunks='day', file=meso_file, verbose=True,
               bbox=bbox, network='1', vars=verification_variables, units='temp|K', hfmetars='0')
 
 
 # Generate the forecast errors relative to observations
 print('Loading or generating ae_meso data...')
-if load_existing_processed_data:
+if load_existing_data:
     error_ds = xr.open_dataset(ae_meso_file)
 else:
     error_ds = ae_meso(ensemble, meso)
@@ -92,16 +103,20 @@ else:
 
 # Generate the predictors and targets
 print('Loading or generating raw predictors...')
-if load_existing_processed_data:
+if load_existing_predictors:
     raw_forecast_predictors, raw_error_predictors = preprocessing.train_data_from_pickle(raw_predictor_file)
 else:
     raw_forecast_predictors = preprocessing.predictors_from_ensemble(ensemble, (lon_0, lon_1), (lat_0, lat_1),
                                                                      variables=forecast_variables,
-                                                                     convolution=100, convolution_step=50, verbose=True)
+                                                                     convolution=convolution,
+                                                                     convolution_step=convolution_step, verbose=True,
+                                                                     pickle_file='extras/temp_fcst_pred.pkl')
     raw_error_predictors = preprocessing.predictors_from_ae_meso(error_ds, ensemble, (lon_0, lon_1), (lat_0, lat_1),
                                                                  variables=verification_variables,
-                                                                 convolution=100, convolution_step=50,
-                                                                 convolution_agg='rmse', verbose=True)
+                                                                 convolution=convolution,
+                                                                 convolution_step=convolution_step,
+                                                                 convolution_agg=convolution_agg,
+                                                                 missing_tolerance=0.01, verbose=True)
     # Check that forecast and error predictors are the same sample (init_date) length
     if raw_forecast_predictors.shape[0] < raw_error_predictors.shape[0]:
         raw_error_predictors = raw_error_predictors[:raw_forecast_predictors.shape[0]]
@@ -118,27 +133,35 @@ ae_verif_12 = 1. * raw_error_predictors[:, :, :, [1], :]
 num_members = raw_error_predictors.shape[2]
 
 
+# Interpolate raw forecast predictors if desired
+if grid_factor > 1:
+    raw_forecast_predictors = preprocessing.interpolate_ensemble_predictors(raw_forecast_predictors, grid_factor)
+
+
 # Okay, we now have the essential data: all of our convolved predictor and target data. These data will undergo just a
 # bit more processing to make them suitable for training, where we need the convolution to be in the sample dimension.
 # For running the ensemble selection, however, we need to aggregate the convolutions of each member and only come up
 # with one answer for each init_date. For this, we have a preprocessing method that takes in ensemble forecast
 # predictors, ae_meso predictors, and radar predictors and reformats into arrays suitable for the 'select' method.
 print('Formatting predictors...')
+convolved = (convolution is not None)
 # Get the selection predictors and verification
 select_predictors, select_shape = preprocessing.format_select_predictors(raw_forecast_predictors[select_days],
-                                                                         raw_error_predictors[select_days],
-                                                                         None, convolved=True, num_members=num_members)
-select_verif = verify.select_verification(ae_verif[select_days], select_shape, convolved=True, agg=verify.stdmean)
-select_verif_12 = verify.select_verification(ae_verif_12[select_days], select_shape, convolved=True, agg=verify.stdmean)
+                                                                         raw_error_predictors[select_days], None,
+                                                                         convolved=convolved, num_members=num_members)
+select_verif = verify.select_verification(ae_verif[select_days], select_shape, convolved=convolved, agg=verify.stdmean)
+select_verif_12 = verify.select_verification(ae_verif_12[select_days], select_shape, convolved=convolved,
+                                             agg=verify.stdmean)
 
 # Final formatting of the training predictors. This appropriately converts convolutions to sample dimension.
-forecast_predictors, fpi = preprocessing.convert_ensemble_predictors_to_samples(raw_forecast_predictors, convolved=True)
+forecast_predictors, fpi = preprocessing.convert_ensemble_predictors_to_samples(raw_forecast_predictors,
+                                                                                convolved=convolved)
 if reduce_ram:
     raw_forecast_predictors = None
-ae_predictors, epi = preprocessing.convert_ae_meso_predictors_to_samples(raw_error_predictors, convolved=True)
+ae_predictors, epi = preprocessing.convert_ae_meso_predictors_to_samples(raw_error_predictors, convolved=convolved)
 if reduce_ram:
     raw_error_predictors = None
-ae_targets, eti = preprocessing.convert_ae_meso_predictors_to_samples(ae_targets, convolved=True)
+ae_targets, eti = preprocessing.convert_ae_meso_predictors_to_samples(ae_targets, convolved=convolved)
 combined_predictors = preprocessing.combine_predictors(forecast_predictors, ae_predictors)
 if reduce_ram:
     forecast_predictors = None
@@ -169,11 +192,15 @@ layers = (
     #     'activation': 'relu',
     #     'input_shape': input_shape
     # }),
-    ('Dense', (512,), {
+    ('Dense', (num_outputs,), {
         'activation': 'relu',
         'input_shape': p_train.shape[1:]
     }),
-    ('Dropout', (0.25,), {}),
+    # ('Dropout', (0.25,), {}),
+    # ('Dense', (512,), {
+    #     'activation': 'relu'
+    # }),
+    # ('Dropout', (0.25,), {}),
     ('Dense', (num_outputs,), {
         'activation': 'linear'
     })
@@ -184,7 +211,7 @@ selector.build_model(layers=layers, gpus=n_gpu, loss='mse', optimizer='adam', me
 # Train and evaluate the model
 print('Training the EnsembleSelector model...')
 start_time = time.time()
-selector.fit(p_train, t_train, batch_size=64, epochs=1, verbose=1, validation_data=(p_test, t_test))
+selector.fit(p_train, t_train, batch_size=batch_size, epochs=epochs, verbose=1, validation_data=(p_test, t_test))
 end_time = time.time()
 
 score = selector.evaluate(p_test, t_test, verbose=0)
@@ -209,10 +236,11 @@ for day in range(len(init_dates)):
     print('\nDay %d: %s' % (day+1, init_dates[day]))
     select_predictors, select_shape = preprocessing.format_select_predictors(raw_forecast_predictors[select_days],
                                                                              raw_error_predictors[select_days],
-                                                                             None, convolved=True,
+                                                                             None, convolved=convolved,
                                                                              num_members=num_members)
-    select_verif = verify.select_verification(ae_verif[select_days], select_shape, convolved=True, agg=verify.stdmean)
-    select_verif_12 = verify.select_verification(ae_verif_12[select_days], select_shape, convolved=True,
+    select_verif = verify.select_verification(ae_verif[select_days], select_shape, convolved=convolved,
+                                              agg=verify.stdmean)
+    select_verif_12 = verify.select_verification(ae_verif_12[select_days], select_shape, convolved=convolved,
                                                  agg=verify.stdmean)
     selection = selector.select(select_predictors, select_shape, agg=verify.stdmean)
     ranks = np.vstack((selection[:, 1], select_verif[:, 1], select_verif_12[:, 1])).T
