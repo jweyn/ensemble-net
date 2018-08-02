@@ -60,8 +60,8 @@ model_file = 'extras/test_selector'
 reduce_ram = False
 
 # Neural network configuration and options
-batch_size = 4
-epochs = 4
+batch_size = 64
+epochs = 8
 # Use multiple GPUs
 n_gpu = 1
 
@@ -192,15 +192,15 @@ layers = (
     #     'activation': 'relu',
     #     'input_shape': input_shape
     # }),
-    ('Dense', (num_outputs,), {
+    ('Dense', (1024,), {
         'activation': 'relu',
         'input_shape': p_train.shape[1:]
     }),
-    # ('Dropout', (0.25,), {}),
-    # ('Dense', (512,), {
-    #     'activation': 'relu'
-    # }),
-    # ('Dropout', (0.25,), {}),
+    ('Dropout', (0.25,), {}),
+    ('Dense', (num_outputs,), {
+        'activation': 'relu'
+    }),
+    ('Dropout', (0.25,), {}),
     ('Dense', (num_outputs,), {
         'activation': 'linear'
     })
