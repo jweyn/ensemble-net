@@ -25,11 +25,12 @@ class EnsembleSelector(object):
     """
     Class containing an ensemble selection model and other processing tools for the input data.
     """
-    def __init__(self, scaler_type='MinMaxScaler', impute=False):
+    def __init__(self, scaler_type='MinMaxScaler', impute_missing=False):
         self.scaler_type = scaler_type
         self.scaler = None
-        self.impute = impute
+        self.impute = impute_missing
         self.imputer = None
+        self.target_imputer = None
         self.model = None
         self.is_parallel = False
 
@@ -89,18 +90,28 @@ class EnsembleSelector(object):
         X_transform = self.scaler.transform(X)
         return X_transform.reshape(X_shape)
 
-    def imputer_fit(self, X, **kwargs):
-        imputer_class = get_from_class('sklearn.preprocessing', self.scaler_type)
-        self.imputer = imputer_class(missing_values=np.nan, strategy="mean", axis=0)
+    def imputer_fit(self, X, y):
+        imputer_class = get_from_class('sklearn.preprocessing', 'Imputer')
+        self.imputer = imputer_class(missing_values=np.nan, strategy="mean", axis=0, copy=False)
+        self.target_imputer = imputer_class(missing_values=np.nan, strategy="mean", axis=0, copy=False)
         X_shape = X.shape
         X = X.reshape((X_shape[0], -1))
         self.imputer.fit(X)
+        y_shape = y.shape
+        y = y.reshape((y_shape[0], -1))
+        self.target_imputer.fit(y)
 
-    def imputer_transform(self, X):
+    def imputer_transform(self, X, y=None):
         X_shape = X.shape
         X = X.reshape((X_shape[0], -1))
         X_transform = self.imputer.transform(X)
-        return X_transform.reshape(X_shape)
+        if y is not None:
+            y_shape = y.shape
+            y = y.reshape((y_shape[0], -1))
+            y_transform = self.target_imputer.transform(y)
+            return X_transform.reshape(X_shape), y_transform.reshape(y_shape)
+        else:
+            return X_transform.reshape(X_shape)
 
     def fit(self, predictors, targets, **kwargs):
         """
@@ -112,18 +123,20 @@ class EnsembleSelector(object):
         :return:
         """
         if self.impute:
-            self.imputer_fit(predictors)
-            predictors = self.imputer_transform(predictors)
+            self.imputer_fit(predictors, targets)
+            predictors, targets = self.imputer_transform(predictors, y=targets)
         self.scaler_fit(predictors)
         predictors_scaled = self.scaler_transform(predictors)
         # Need to scale the validation data if it is given
         if 'validation_data' in kwargs:
             if self.impute:
-                predictors_test_scaled = self.imputer_transform(kwargs['validation_data'][0])
+                predictors_test_scaled, targets_test_scaled = self.imputer_transform(
+                    kwargs['validation_data'][0], y=kwargs['validation_data'][1])
                 predictors_test_scaled = self.scaler_transform(predictors_test_scaled)
+                kwargs['validation_data'] = (predictors_test_scaled, targets_test_scaled)
             else:
                 predictors_test_scaled = self.scaler_transform(kwargs['validation_data'][0])
-            kwargs['validation_data'] = (predictors_test_scaled, kwargs['validation_data'][1])
+                kwargs['validation_data'] = (predictors_test_scaled, kwargs['validation_data'][1])
         self.model.fit(predictors_scaled, targets, **kwargs)
 
     def predict(self, predictors, **kwargs):
