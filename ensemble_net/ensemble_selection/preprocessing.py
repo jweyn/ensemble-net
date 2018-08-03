@@ -529,7 +529,7 @@ def interpolate_ensemble_predictors(predictors, factor, **griddata_kwargs):
     slices = [slice(None)] * len(predictors.shape)
     slices[-2] = slice(start, -1, factor)
     slices[-1] = slice(start, -1, factor)
-    return predictors[slices]
+    return predictors[tuple(slices)]
 
 
 def extract_members_from_samples(predictors, num_members):
