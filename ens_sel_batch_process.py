@@ -20,10 +20,8 @@ from datetime import datetime, timedelta
 
 
 # Ensemble data parameters
-start_init_date = datetime(2016, 4, 1)
-end_init_date = datetime(2016, 4, 30)
-pd_date_range = pd.date_range(start=start_init_date, end=end_init_date, freq='D')
-init_dates = list(pd_date_range.to_pydatetime())
+start_init_date = datetime(2015, 4, 1)
+end_init_date = datetime(2017, 3, 31)
 forecast_hours = list(range(0, 25, 12))
 members = list(range(1, 11))
 forecast_variables = ('TMP2', 'DPT2', 'MSLP', 'CAPE')
@@ -55,6 +53,18 @@ ae_meso_file = '%s/mesowest-error-201504-201803.nc' % root_data_dir
 predictor_file = '%s/predictors_201504-201803_28N43N100W80W_x4_no_c.nc'
 
 
+# Generate monthly batches of dates
+dates = pd.date_range(start_init_date, end_init_date, freq='D')
+months = dates.to_period('M')
+unique_months = months.unique()
+month_list = []
+for m in range(len(unique_months)):
+    month_list.append(dates[months == unique_months[m]].to_pydatetime())
+
+
+# Generate the dataset on disk for the predictors. Should we just do this with netCDF4??
+
+
 # Load NCAR Ensemble data
 print('Loading NCAR ensemble data...')
 ensemble = NCARArray(root_directory='/home/disk/wave/jweyn/Data/NCAR_Ensemble',)
@@ -73,7 +83,7 @@ pad = 1.0
 bbox = '%s,%s,%s,%s' % (lon_0 - pad, lat_0 - pad, lon_1 + pad, lat_1 + pad)
 meso_start_date = date_to_meso_date(start_init_date - timedelta(hours=1))
 meso_end_date = date_to_meso_date(end_init_date + timedelta(hours=max(forecast_hours)))
-meso = MesoWest(token='038cd42021bc46faa8d66fd59a8b72ab')
+meso = MesoWest(token='')
 meso.load_metadata(bbox=bbox, network='1')
 if not load_existing_data:
     meso.load(meso_start_date, meso_end_date, chunks='day', file=meso_file, verbose=True,
