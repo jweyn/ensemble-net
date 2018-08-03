@@ -62,6 +62,7 @@ reduce_ram = False
 # Neural network configuration and options
 batch_size = 64
 epochs = 8
+impute_missing = True
 # Use multiple GPUs
 n_gpu = 1
 
@@ -169,7 +170,10 @@ if reduce_ram:
 
 
 # Remove samples with NaN
-predictors, targets = preprocessing.delete_nan_samples(combined_predictors, ae_targets)
+if impute_missing:
+    predictors, targets = combined_predictors, ae_targets
+else:
+    predictors, targets = preprocessing.delete_nan_samples(combined_predictors, ae_targets)
 
 
 # Split into train and test sets. Either random subset or last 20%.
@@ -185,7 +189,7 @@ t_test = targets[split:]
 
 # Build an ensemble selection model
 print('Building an EnsembleSelector model...')
-selector = model.EnsembleSelector()
+selector = model.EnsembleSelector(impute_missing=impute_missing)
 layers = (
     # ('Conv2D', (64,), {
     #     'kernel_size': (3, 3),
@@ -219,7 +223,8 @@ print("\nTrain time -- %s seconds --" % (end_time - start_time))
 print('Test loss:', score[0])
 print('Test mean absolute error:', score[1])
 
-save_model(selector, model_file)
+if model_file is not None:
+    save_model(selector, model_file)
 
 
 # Do a model selection
