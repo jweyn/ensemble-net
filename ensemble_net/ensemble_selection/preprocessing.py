@@ -606,5 +606,5 @@ def format_select_predictors(forecast, ae_meso, radar=None, convolved=False, num
     else:
         sel_combined_predictors = combine_predictors(sel_fcst_predictors, sel_ae_predictors, do_reshape=False)
     # TODO: will have to deal with NaN more elegantly in the future. Probably a "mask" array.
-    sel_combined_predictors[np.isnan(sel_combined_predictors)] = 0.5
+    # sel_combined_predictors[np.isnan(sel_combined_predictors)] = 0.5
     return sel_combined_predictors, sel_combined_predictors.shape[:2]

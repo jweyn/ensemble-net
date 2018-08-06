@@ -524,7 +524,7 @@ class NCARArray(object):
                     if delete_raw_files:
                         if os.path.isfile(grib_file_name):
                             os.remove(grib_file_name)
-                        if os.path.isfile(diags_file_name):
+                        if use_ncar_netcdf and os.path.isfile(diags_file_name):
                             os.remove(diags_file_name)
 
             nc_fid.close()
@@ -549,7 +549,10 @@ class NCARArray(object):
         self.Dataset = xr.open_mfdataset(nc_files, concat_dim=concat_dim, **dataset_kwargs)
         self.dataset_variables = list(self.Dataset.variables.keys())
         if self._has_single_file:
-            self.Dataset = self.Dataset.expand_dims(str(concat_dim))
+            try:
+                self.Dataset = self.Dataset.expand_dims(str(concat_dim))
+            except ValueError:  # init_date already exists
+                pass
 
     def field(self, variable, init_date, forecast_hour, member):
         """
