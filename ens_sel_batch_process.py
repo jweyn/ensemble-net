@@ -33,9 +33,9 @@ verification_variables = ('TMP2', 'DPT2', 'MSLP')
 
 # Subset with grid parameters
 lat_0 = 28.
-lat_1 = 43.
+lat_1 = 40.
 lon_0 = -100.
-lon_1 = -80.
+lon_1 = -78.
 grid_factor = 4
 num_members = 10
 
@@ -72,7 +72,7 @@ dates = list(dates.to_pydatetime())
 print("Creating dataset '%s'" % predictor_file)
 ncf = nc.Dataset(predictor_file, 'w', format='NETCDF4')
 ncf.createDimension('init_date', 0)
-nc_time = ncf.createVariable('init_date', np.int64, ('init_date',))
+nc_time = ncf.createVariable('init_date', np.float64, ('init_date',))
 nc_time_units = 'hours since 1970-01-01 00:00'
 ncf.variables['init_date'][:] = nc.date2num(dates, nc_time_units)
 get_dims = True
@@ -87,8 +87,8 @@ ensemble.forecast_hour_coord = forecast_hours  # Not good practice, but an overr
 if retrieve_forecast_data:
     for batch in month_list:
         ensemble.retrieve(batch, forecast_hours, members, get_ncar_netcdf=False, verbose=True)
-        ensemble.write(retrieve_forecast_variables, forecast_hours=forecast_hours, members=members,
-                       use_ncar_netcdf=False, verbose=True, delete_raw_files=True)
+        ensemble.write(retrieve_forecast_variables, init_dates=batch, forecast_hours=forecast_hours, members=members,
+                       omit_existing=True, use_ncar_netcdf=False, verbose=True, delete_raw_files=True)
 
 
 # Generate the predictors from the ensemble, iterating over init_dates
@@ -117,17 +117,17 @@ for date in dates:
         print("Creating dimensions and variable 'ENS_PRED'")
         ncf.createDimension('ens_var', raw_forecast_predictors.shape[1])
         ncf.createDimension('member', raw_forecast_predictors.shape[2])
-        ncf.createDimension('time', raw_forecast_predictors.shape[3])
+        ncf.createDimension('ens_time', raw_forecast_predictors.shape[3])
         ncf.createDimension('ny', raw_forecast_predictors.shape[-2])
         ncf.createDimension('nx', raw_forecast_predictors.shape[-1])
         if convolved:
             ncf.createDimension('convolution', raw_forecast_predictors.shape[-3])
             nc_var = ncf.createVariable('ENS_PRED', np.float32,
-                                        ('init_date', 'ens_var', 'member', 'time', 'convolution', 'ny', 'nx'),
+                                        ('init_date', 'ens_var', 'member', 'ens_time', 'convolution', 'ny', 'nx'),
                                         zlib=True)
         else:
             nc_var = ncf.createVariable('ENS_PRED', np.float32,
-                                        ('init_date', 'ens_var', 'member', 'time', 'ny', 'nx'), zlib=True)
+                                        ('init_date', 'ens_var', 'member', 'ens_time', 'ny', 'nx'), zlib=True)
         nc_var.setncatts({
             'long_name': 'Predictors from ensemble',
             'units': 'N/A'
@@ -180,13 +180,14 @@ raw_error_predictors, ae_targets = (1. * raw_error_predictors[:, :, :, :-1, :],
 
 # Write predictors to the file
 ncf.createDimension('obs_var', raw_error_predictors.shape[1])
+ncf.createDimension('obs_time', raw_error_predictors.shape[-2])
 if convolved:
     nc_var = ncf.createVariable('AE_PRED', np.float32,
-                                ('init_date', 'obs_var', 'member', 'time', 'convolution'), zlib=True)
+                                ('init_date', 'obs_var', 'member', 'obs_time', 'convolution'), zlib=True)
 else:
     ncf.createDimension('station', raw_error_predictors.shape[-1])
     nc_var = ncf.createVariable('AE_PRED', np.float32,
-                                ('init_date', 'obs_var', 'member', 'time', 'station'), zlib=True)
+                                ('init_date', 'obs_var', 'member', 'obs_time', 'station'), zlib=True)
 nc_var.setncatts({
     'long_name': 'Predictors from MesoWest observation errors',
     'units': 'N/A'
@@ -208,3 +209,4 @@ nc_var.setncatts({
 nc_var = None
 ncf.variables['AE_TAR'][:] = ae_targets
 
+ncf.close()
