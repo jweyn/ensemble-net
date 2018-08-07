@@ -185,7 +185,8 @@ class NCARArray(object):
         directory. The same directory structure (%Y/%Y%m%d/file_name) is used locally as on the server. Creates
         subdirectories if necessary.
 
-        :param init_dates: list or tuple: date or datetime objects of model initialization
+        :param init_dates: list or tuple: date or datetime objects of model initialization. May be 'all', in which case
+            all init_dates in the object's 'dataset_init_dates' attributes are retrieved.
         :param forecast_hours: list or tuple: forecast hours to retrieve from each init_date
         :param members: int or list or tuple: IDs (1--10) of ensemble members to retrieve
         :param get_ncar_netcdf: bool: if True, retrieves the netCDF files
@@ -193,6 +194,8 @@ class NCARArray(object):
         :return: None
         """
         # Check if any parameter is a single value
+        if init_dates == 'all':
+            init_dates = self.dataset_init_dates
         if not (isinstance(init_dates, list) or isinstance(init_dates, tuple)):
             init_dates = [init_dates]
         if not (isinstance(forecast_hours, list) or isinstance(forecast_hours, tuple)):
@@ -203,6 +206,7 @@ class NCARArray(object):
         # Determine the files to retrieve
         if verbose:
             print('retrieve_ncar_data: beginning data retrieval\n')
+        self.raw_files = []
         for init_date in init_dates:
             if init_date < data_start_date or init_date > data_end_date:
                 print('* Warning: doing nothing for init date %s, out of range (%s to %s)' %
@@ -267,8 +271,15 @@ class NCARArray(object):
                         for chunk in response.iter_content(chunk_size=128):
                             fd.write(chunk)
                 except BaseException as e:
-                    print('warning: failed to download %s' % remote_file)
-                    print('* Reason: "%s"' % str(e))
+                    print('warning: failed to download %s, retrying' % remote_file)
+                    try:
+                        response = c.get(remote_file, verify=False)
+                        with open(local_file, 'wb') as fd:
+                            for chunk in response.iter_content(chunk_size=128):
+                                fd.write(chunk)
+                    except BaseException as e:
+                        print('warning: failed to download %s' % remote_file)
+                        print('* Reason: "%s"' % str(e))
 
     def write(self, variables, init_dates='all', forecast_hours='all', members='all', use_ncar_netcdf=False,
               write_into_existing=True, omit_existing=False, delete_raw_files=False, verbose=False):
