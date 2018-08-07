@@ -271,7 +271,7 @@ class NCARArray(object):
                     print('* Reason: "%s"' % str(e))
 
     def write(self, variables, init_dates='all', forecast_hours='all', members='all', use_ncar_netcdf=False,
-              write_into_existing=True, delete_raw_files=False, verbose=False):
+              write_into_existing=True, omit_existing=False, delete_raw_files=False, verbose=False):
         """
         Loads NCAR ensemble data for the given DateTime objects (list or tuple form) and members from the raw files and
         writes the data to reformatted netCDF files. Processed files are saved under self.root_directory/processed.
@@ -287,6 +287,8 @@ class NCARArray(object):
         :param use_ncar_netcdf: bool: if True, reads data from netCDF files
         :param write_into_existing: bool: if True, checks for existing files and appends if they exist. If False,
             overwrites any existing files.
+        :param omit_existing: bool: if True, then if a processed file exists, skip it. Only useful if existing data
+            are known to be complete.
         :param delete_raw_files: bool: if True, deletes the original data files from which the processed versions were
             made
         :param verbose: bool: include progress print statements
@@ -427,9 +429,9 @@ class NCARArray(object):
                                                           indicatorOfTypeOfLevel=str(table[row, 2]),
                                                           level=int(table[row, 3]))
                         if verbose and len(grib_list) > 1:
-                            print('* Warning: found multiple matches for %s; using the first (%s)' %
-                                  (var, grib_list[0]))
-                        data = np.array(grib_list[0].values, dtype=np.float32)
+                            print('* Warning: found multiple matches for %s; using the last (%s)' %
+                                  (var, grib_list[-1]))
+                        data = np.array(grib_list[-1].values, dtype=np.float32)
                         data[data > 1.e30] = np.nan
                         nc_fid.variables[var][member_index, time_index, ...] = data
                     except (ValueError, OSError):  # missing index gives an OS read error
@@ -452,6 +454,10 @@ class NCARArray(object):
             nc_file_open_type = 'w'
             init_coord = True
             if os.path.isfile(nc_file_name):
+                if omit_existing:
+                    if verbose:
+                        print('Omitting file %s; exists' % nc_file_name)
+                    continue
                 if write_into_existing:
                     nc_file_open_type = 'a'
                     init_coord = False
@@ -509,8 +515,11 @@ class NCARArray(object):
                         grib2 = False
                     # Write the latitude and longitude coordinate arrays, if needed
                     if init_coord:
-                        read_write_grib_lat_lon(grib_file_name)
-                        init_coord = False
+                        try:
+                            read_write_grib_lat_lon(grib_file_name)
+                            init_coord = False
+                        except (IOError, OSError):
+                            print("* Warning: file %s not found for coordinates; trying the next one." % grib_file_name)
                     read_write_grib(grib_file_name, grib2)
 
                     # Do the ncar netCDF part

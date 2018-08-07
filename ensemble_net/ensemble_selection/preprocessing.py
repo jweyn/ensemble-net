@@ -356,8 +356,10 @@ def predictors_from_ae_meso(ae_ds, ensemble, xlim, ylim, variables=(), forecast_
     num_samples = len(grand_time_list)
     num_members = ae_ds.dims['member']
     num_f_hours = len(forecast_hours)
-    num_stations = len(ae_ds.data_vars.keys())
     if convolution is None:
+        # Subset stations by the ones within the lat/lon arrays
+        stations = find_stations_dict(stations_dict, xlim, ylim)
+        num_stations = len(stations)
         predictors = np.full((num_samples, num_var, num_members, num_f_hours, num_stations), np.nan, dtype=np.float32)
     else:
         start_point_y = (convolution[1] + 1) // 2 - 1
@@ -368,8 +370,6 @@ def predictors_from_ae_meso(ae_ds, ensemble, xlim, ylim, variables=(), forecast_
         predictors = np.full((num_samples, num_var, num_members, num_f_hours, num_conv), np.nan, dtype=np.float32)
 
     # Add the data to the array
-    if convolution is None:
-        stations = find_stations_dict(stations_dict, xlim, ylim)
     for v in range(num_var):
         variable = variables[v]
         v_ind = list(ae_ds['variable'].values).index(variable)
