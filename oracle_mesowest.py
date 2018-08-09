@@ -60,14 +60,14 @@ error_ds = ae_meso(ensemble, meso)
 # error_ds = xr.open_dataset('extras/mesowest-error-201604.nc')
 
 # For each init and forecast hour, find the station-averaged MSE for each ensemble member (and the ensemble mean)
-ds_times = list(error_ds.variables['time'].values)
+ds_fhour = list(error_ds.variables['fhour'].values)
 ds_stations = list(error_ds.data_vars.keys())
 mae_array = np.zeros((len(ds_stations), len(init_dates), len(members), len(forecast_hours), len(variables)))
 for s in range(len(ds_stations)):
     station = ds_stations[s]
     for init in range(len(init_dates)):
         init_date = init_dates[init]
-        time_indices = [ds_times.index(np.datetime64(init_date + timedelta(hours=f))) for f in forecast_hours]
+        time_indices = [ds_fhour.index(f) for f in forecast_hours]
         mae_array[s, init] = error_ds[station][init, :, time_indices, :].values
 
 mae_mean = np.nanmean(mae_array, axis=2)

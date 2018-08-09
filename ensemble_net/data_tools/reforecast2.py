@@ -91,7 +91,7 @@ class GR2Array(object):
     @property
     def lat(self):
         try:
-            lat = self.Dataset.variables['lat'][:]
+            lat = self.Dataset.variables['latitude'][:]
             if len(lat.shape) > 2:
                 return lat[0, ...].values
             else:
@@ -104,7 +104,7 @@ class GR2Array(object):
     @property
     def lon(self):
         try:
-            lon = self.Dataset.variables['lon'][:]
+            lon = self.Dataset.variables['longitude'][:]
             if len(lon.shape) > 2:
                 return lon[0, ...].values
             else:
@@ -116,7 +116,7 @@ class GR2Array(object):
 
     def set_init_dates(self, init_dates):
         """
-        Set the NCARArray object's dataset_init_dates attribute, a list of datetime objects which determines which
+        Set the GR2Array object's dataset_init_dates attribute, a list of datetime objects which determines which
         ensemble runs are retrieved and processed. This attribute is set automatically when using the method 'retrieve',
         but may be used when 'retrieve' is not desired or as an override.
 
@@ -127,7 +127,7 @@ class GR2Array(object):
 
     def set_forecast_hour_coord(self, forecast_hour_coord='default'):
         """
-        Set the NCARArray object's 'forecast_hour_coord' attribute, which tells the object methods which forecast hours
+        Set the GR2Array object's 'forecast_hour_coord' attribute, which tells the object methods which forecast hours
         to look at for individual init_dates. Can be 'default' to reset to the default hourly by 48 hours or an iterable
         of integer forecast hours.
 
@@ -141,7 +141,7 @@ class GR2Array(object):
 
     def set_member_coord(self, member_coord='default'):
         """
-        Set the NCARArray object's 'member_coord' attribute, which tells the object methods which ensemble members to
+        Set the GR2Array object's 'member_coord' attribute, which tells the object methods which ensemble members to
         look at when indexing. Can be 'default' to reset to the default members 0--10 or an iterable of integer member
         IDs. Member 0 is the control.
 
@@ -156,7 +156,7 @@ class GR2Array(object):
     def closest_lat_lon(self, lat, lon):
         """
         Find the grid-point index of the closest point to the specified latitude and longitude values in loaded
-        NCARArray data.
+        GR2Array data.
 
         :param lat: float or int: latitude in degrees
         :param lon: float or int: longitude in degrees
@@ -171,7 +171,7 @@ class GR2Array(object):
 
     def retrieve(self, init_dates, variables, members, verbose=False):
         """
-        Retrieves NCAR ensemble data for the given init dates, forecast hours, and members, and writes them to
+        Retrieves GEFS ensemble data for the given init dates, forecast hours, and members, and writes them to
         directory. The same directory structure (%Y/%Y%m/%Y%m%d/file_name) is used locally as on the server. Creates
         subdirectories if necessary.
 
@@ -257,7 +257,7 @@ class GR2Array(object):
     def write(self, variables, init_dates='all', forecast_hours='all', members='all', write_into_existing=True,
               omit_existing=False, delete_raw_files=False, verbose=False):
         """
-        Loads NCAR ensemble data for the given DateTime objects (list or tuple form) and members from the raw files and
+        Loads GR2 ensemble data for the given DateTime objects (list or tuple form) and members from the raw files and
         writes the data to reformatted netCDF files. Processed files are saved under self.root_directory/processed.
 
         :param variables: list: list of variables to retrieve from data; required
@@ -291,7 +291,7 @@ class GR2Array(object):
         elif not(isinstance(members, list) or isinstance(members, tuple)):
             members = [members]
         if len(variables) == 0:
-            print('NCARArray.write: no variables specified; will do nothing.')
+            print('GR2Array.write: no variables specified; will do nothing.')
             return
         forecast_hour_coord = [f for f in self.forecast_hour_coord]
         member_coord = [m for m in self.member_coord]
@@ -405,7 +405,8 @@ class GR2Array(object):
                 # Create dimensions
                 if verbose:
                     print('Creating coordinate dimensions')
-                nc_fid.description = 'Selected variables from the NCAR ensemble initialized at %s' % init_date
+                nc_fid.description = ('Selected variables from the GEFS Reforecast 2 ensemble initialized at %s' %
+                                      init_date)
                 nc_fid.createDimension('time', 0)
                 nc_fid.createDimension('member', len(self.member_coord))
                 nc_fid.createDimension('fhour', len(self.forecast_hour_coord))
@@ -499,7 +500,7 @@ class GR2Array(object):
 
     def field(self, variable, init_date, forecast_hour, member):
         """
-        Shortcut method to return a 2-D numpy array from the data loaded in an NCARArray.
+        Shortcut method to return a 2-D numpy array from the data loaded in an GR2Array.
 
         :param variable: str: variable to retrieve
         :param init_date: datetime: model initialization date
@@ -523,9 +524,9 @@ class GR2Array(object):
 
     def generate_basemap(self, llcrnrlat=None, llcrnrlon=None, urcrnrlat=None, urcrnrlon=None):
         """
-        Generates a Basemap object for graphical plot of NCAR data on a 2-D plane. Bounding box parameters
+        Generates a Basemap object for graphical plot of GR2 data on a 2-D plane. Bounding box parameters
         are either given, or if None, read from the extremes of the loaded lat/lon data. Other projection parameters
-        are set to the default NCAR configuration.
+        are set to the default GR2 configuration.
 
         :param llcrnrlat: float: lower left corner latitude
         :param llcrnrlon: float: lower left corner longitude
@@ -564,9 +565,8 @@ class GR2Array(object):
 
     def plot(self, variable, init_date, forecast_hour, member, **plot_basemap_kwargs):
         """
-        Wrapper to plot a specified field from an NCAR object.
+        Wrapper to plot a specified field from an GR2Array object.
 
-        :param ncar_obj: data_tools.NCAR: NCAR object containing data
         :param variable: str: variable to plot
         :param init_date: datetime: datetime of run initialization
         :param forecast_hour: int: forecast hour to plot
@@ -576,7 +576,7 @@ class GR2Array(object):
         :return: matplotlib Figure object
         """
         from ..plot import plot_basemap
-        print('NCARArray plot: plot of %s at %s (f%03d, member %d)' % (variable, init_date, forecast_hour, member))
+        print('GR2Array plot: plot of %s at %s (f%03d, member %d)' % (variable, init_date, forecast_hour, member))
         field = self.field(variable, init_date, forecast_hour, member)
         fig = plot_basemap(self.basemap, self.lon, self.lat, field, **plot_basemap_kwargs)
         return fig

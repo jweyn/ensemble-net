@@ -61,8 +61,7 @@ def train_data_from_ensemble(ncar, xlim, ylim, variables=(), latlon=False, lead_
         for verif in range(first_verification, last_verification, time_interval):
             verif_datetime = init_date + timedelta(hours=verif)
             try:
-                # Complex indexing to deal with how xarray concatenates the time variable
-                verif_index = list(ncar.Dataset.variables['time'].values).index(np.datetime64(verif_datetime))
+                verif_index = list(ncar.forecast_hour_coord).index(verif)
             except (KeyError, IndexError):
                 print('train_data_from_ensemble warning: time index (%s) not found in data' % verif_datetime)
                 continue
@@ -71,7 +70,7 @@ def train_data_from_ensemble(ncar, xlim, ylim, variables=(), latlon=False, lead_
             try:
                 for train in range(lead_time, first_verification+1, time_interval):
                     train_datetime = verif_datetime - timedelta(hours=train)
-                    train_index = list(ncar.Dataset.variables['time'].values).index(np.datetime64(train_datetime))
+                    train_index = list(ncar.forecast_hour_coord).index(train)
                     sample_train_index_list.append(train_index)
                     sample_train_time_list.append(train_datetime)
             except (KeyError, IndexError):
@@ -122,10 +121,10 @@ def train_data_from_ensemble(ncar, xlim, ylim, variables=(), latlon=False, lead_
                                                                                             num_members, sample+1,
                                                                                             num_samples))
                 ind = grand_index_list[sample]
-                targets[sample, member, :, :, v] = np.squeeze(new_ds[variable].isel(init_date=ind[0], member=member,
-                                                                                    time=ind[1]).values)
-                predictors[sample, member, :, :, v, :] = ((new_ds[variable].isel(init_date=ind[0], member=member,
-                                                                                 time=ind[2]).values)
+                targets[sample, member, :, :, v] = np.squeeze(new_ds[variable].isel(time=ind[0], member=member,
+                                                                                    fhour=ind[1]).values)
+                predictors[sample, member, :, :, v, :] = ((new_ds[variable].isel(time=ind[0], member=member,
+                                                                                 fhour=ind[2]).values)
                                                            .reshape((train_time_steps, num_y, num_x))
                                                            .transpose((1, 2, 0)))
 

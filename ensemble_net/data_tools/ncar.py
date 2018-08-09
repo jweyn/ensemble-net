@@ -87,7 +87,6 @@ class NCARArray(object):
             self._root_directory = '%s/.ncar' % os.path.expanduser('~')
         else:
             self._root_directory = root_directory
-        self.basemap = None
         # Optionally-modified dimensions for the dataset
         self.member_coord = list(range(1, 11))
         self.forecast_hour_coord = list(range(0, 49))
@@ -96,12 +95,12 @@ class NCARArray(object):
         self._nx = 1580
         # Data
         self.Dataset = None
-        self._has_single_file = False
+        self.basemap = None
 
     @property
     def lat(self):
         try:
-            lat = self.Dataset.variables['lat'][:]
+            lat = self.Dataset.variables['latitude'][:]
             if len(lat.shape) > 2:
                 return lat[0, ...].values
             else:
@@ -114,7 +113,7 @@ class NCARArray(object):
     @property
     def lon(self):
         try:
-            lon = self.Dataset.variables['lon'][:]
+            lon = self.Dataset.variables['longitude'][:]
             if len(lon.shape) > 2:
                 return lon[0, ...].values
             else:
@@ -344,7 +343,8 @@ class NCARArray(object):
                     if var not in nc_fid.variables.keys():
                         if verbose:
                             print('Creating variable %s' % var)
-                        nc_var = nc_fid.createVariable(var, np.float32, ('member', 'time', 'south_north', 'west_east'),
+                        nc_var = nc_fid.createVariable(var, np.float32,
+                                                       ('time', 'member', 'fhour', 'south_north', 'west_east'),
                                                        zlib=True)
                         try:
                             nc_var.setncatts({
@@ -356,8 +356,8 @@ class NCARArray(object):
                                 print('Attributes for %s not specified in diags file' % var)
                     if verbose:
                         print('Writing %s' % var)
-                    nc_fid.variables[var][member_index, time_index, ...] = np.array(np.squeeze(variable[:]),
-                                                                                    dtype=np.float32)
+                    nc_fid.variables[var][0, member_index, time_index, ...] = np.array(np.squeeze(variable[:]),
+                                                                                       dtype=np.float32)
             diags_file.close()
 
         def read_write_grib_lat_lon(file_name):
@@ -380,18 +380,18 @@ class NCARArray(object):
                     raise
             if verbose:
                 print('Writing latitude and longitude')
-            nc_var = nc_fid.createVariable('lat', np.float32, ('south_north', 'west_east'), zlib=True)
+            nc_var = nc_fid.createVariable('latitude', np.float32, ('south_north', 'west_east'), zlib=True)
             nc_var.setncatts({
                 'long_name': 'Latitude',
                 'units': 'degrees_north'
             })
-            nc_fid.variables['lat'][:] = lat
-            nc_var = nc_fid.createVariable('lon', np.float32, ('south_north', 'west_east'), zlib=True)
+            nc_fid.variables['latitude'][:] = lat
+            nc_var = nc_fid.createVariable('longitude', np.float32, ('south_north', 'west_east'), zlib=True)
             nc_var.setncatts({
                 'long_name': 'Longitude',
                 'units': 'degrees_east'
             })
-            nc_fid.variables['lon'][:] = lon
+            nc_fid.variables['longitude'][:] = lon
             grib_data.close()
 
         def read_write_grib(file_name, is_grib2):
@@ -422,7 +422,8 @@ class NCARArray(object):
                     if var not in nc_fid.variables.keys():
                         if verbose:
                             print('Creating variable %s' % var)
-                        nc_var = nc_fid.createVariable(var, np.float32, ('member', 'time', 'south_north', 'west_east'),
+                        nc_var = nc_fid.createVariable(var, np.float32,
+                                                       ('time', 'member', 'fhour', 'south_north', 'west_east'),
                                                        zlib=True)
                         nc_var.setncatts({
                             'long_name': table[row, 5],
@@ -444,7 +445,7 @@ class NCARArray(object):
                                   (var, grib_list[-1]))
                         data = np.array(grib_list[-1].values, dtype=np.float32)
                         data[data > 1.e30] = np.nan
-                        nc_fid.variables[var][member_index, time_index, ...] = data
+                        nc_fid.variables[var][0, member_index, time_index, ...] = data
                     except (ValueError, OSError):  # missing index gives an OS read error
                         print('* Warning: grib variable %s not found in file %s' % (var, file_name))
                         pass
@@ -482,10 +483,20 @@ class NCARArray(object):
                 if verbose:
                     print('Creating coordinate dimensions')
                 nc_fid.description = 'Selected variables from the NCAR ensemble initialized at %s' % init_date
+                nc_fid.createDimension('time', 0)
                 nc_fid.createDimension('member', len(self.member_coord))
-                nc_fid.createDimension('time', len(self.forecast_hour_coord))
+                nc_fid.createDimension('fhour', len(self.forecast_hour_coord))
                 nc_fid.createDimension('south_north', self._ny)
                 nc_fid.createDimension('west_east', self._nx)
+
+                # Create unlimited time variable for initialization time
+                nc_var = nc_fid.createVariable('time', np.float32, 'time', zlib=True)
+                time_units = 'hours since 1970-01-01 00:00:00'
+                nc_var.setncatts({
+                    'long_name': 'Model initialization time',
+                    'units': time_units
+                })
+                nc_fid.variables['time'][:] = nc.date2num([init_date], time_units)
 
                 # Create unchanging member variable
                 nc_var = nc_fid.createVariable('member', np.int32, 'member', zlib=True)
@@ -496,12 +507,12 @@ class NCARArray(object):
                 nc_fid.variables['member'][:] = self.member_coord
 
                 # Create unchanging time variable
-                nc_var = nc_fid.createVariable('time', np.int32, 'time', zlib=True)
+                nc_var = nc_fid.createVariable('fhour', np.int32, 'fhour', zlib=True)
                 nc_var.setncatts({
-                    'long_name': 'Time',
-                    'units': 'hours since %s' % datetime.strftime(init_date, '%Y-%m-%d %H:%M')
+                    'long_name': 'Forecast hour',
+                    'units': 'hours'
                 })
-                nc_fid.variables['time'][:] = self.forecast_hour_coord
+                nc_fid.variables['fhour'][:] = self.forecast_hour_coord
 
             # Now go through the member and hour files to add data to the netCDF file
             for member in members:
@@ -549,7 +560,7 @@ class NCARArray(object):
 
             nc_fid.close()
 
-    def load(self, concat_dim='init_date', **dataset_kwargs):
+    def load(self, concat_dim='time', **dataset_kwargs):
         """
         Load an xarray multi-file Dataset for the processed files with initialization dates in self.dataset_init_dates.
         Once loaded, this Dataset is accessible by self.Dataset.
@@ -562,18 +573,9 @@ class NCARArray(object):
         if not self.dataset_init_dates:
             raise ValueError("no ensemble initialization dates specified for loading using 'set_init_dates'")
         nc_files = ['%s/%s.nc' % (nc_file_dir, date_to_file_date(d)) for d in self.dataset_init_dates]
-        if len(nc_files) == 1:
-            self._has_single_file = True
-        else:
-            self._has_single_file = False
         self.Dataset = xr.open_mfdataset(nc_files, concat_dim=concat_dim, **dataset_kwargs)
         self.Dataset.set_coords(['latitude', 'longitude'], inplace=True)
         self.dataset_variables = list(self.Dataset.variables.keys())
-        if self._has_single_file:
-            try:
-                self.Dataset = self.Dataset.expand_dims(str(concat_dim))
-            except ValueError:  # init_date already exists
-                pass
 
     def field(self, variable, init_date, forecast_hour, member):
         """

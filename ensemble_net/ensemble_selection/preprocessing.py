@@ -87,14 +87,14 @@ def _conv_agg(arr, agg, axis=0):
 def predictors_from_ensemble(ensemble, xlim, ylim, variables=(), latlon=True, forecast_hours=(0, 12, 24),
                              convolution=None, convolution_step=1, pickle_file=None, verbose=True):
     """
-    Generate predictor data from processed (written/loaded) NCAR ensemble files, for the ensemble  selection model.
+    Generate predictor data from processed (written/loaded) ensemble files, for the ensemble selection model.
     Data are hourly. Parameter 'forecast_hours' determines which forecast hours for each initialization are included
     as predictors. The parameters 'convolution' and 'convolution_step' are used to split spatial data into multiple
     predictor samples. If 'convolution' is not None, then either an integer or a tuple of integers of length 2 should
     be provided; these integers determine the size of the convolution pass in the spatial directions (x,y). The
     parameter 'convolution_step' determines the number of grid points to advance forward in space at each convolution.
 
-    :param ensemble: NCARArray object with .load() method called
+    :param ensemble: NCARArray or GR2Array object with .load() method called
     :param variables: tuple of str: names of variables to retrieve from the data (see data docs)
     :param xlim: tuple: minimum and maximum x-direction grid points (or longitude if latlon == True)
     :param ylim: tuple: minimum and maximum y-direction grid points (or latitude if latlon == True)
@@ -110,7 +110,7 @@ def predictors_from_ensemble(ensemble, xlim, ylim, variables=(), latlon=True, fo
     """
     # Test that data is loaded
     if ensemble.Dataset is None:
-        raise IOError('no data loaded to NCARArray object.')
+        raise IOError('no data loaded to ensemble object.')
 
     # Sanity check for parameters
     if convolution_step < 1:
@@ -129,25 +129,18 @@ def predictors_from_ensemble(ensemble, xlim, ylim, variables=(), latlon=True, fo
     # Get the indexes of all training samples
     num_init = len(ensemble.dataset_init_dates)
     grand_index_list = []
-    grand_time_list = []
     if verbose:
         print('predictors_from_ensemble: getting indices of all samples')
     for init in range(num_init):
-        init_date = ensemble.dataset_init_dates[init]
         sample_train_index_list = []
-        sample_train_time_list = []
         try:
             for f in forecast_hours:
-                f_time = init_date + timedelta(hours=f)
-                # Complex indexing to deal with how xarray concatenates the time variable
-                f_index = list(ensemble.Dataset.variables['time'].values).index(np.datetime64(f_time))
+                f_index = list(ensemble.forecast_hour_coord).index(f)
                 sample_train_index_list.append(f_index)
-                sample_train_time_list.append(f_time)
         except (KeyError, IndexError):
-            print('predictors_from_ensemble warning: time index (%s) not found in data' % f_time)
+            print('predictors_from_ensemble warning: forecast hour (%s) not found in data' % f)
             continue
         grand_index_list.append([init, sample_train_index_list])
-        grand_time_list.append([init_date, sample_train_time_list])
 
     # Get the spatial indexes
     if latlon:
@@ -196,7 +189,7 @@ def predictors_from_ensemble(ensemble, xlim, ylim, variables=(), latlon=True, fo
         if verbose:
             print('predictors_from_ensemble: reading all the data for init %s' % init_date)
         new_ds = None
-        new_ds = reduced_ds.isel(init_date=init, south_north=range(y1, y2), west_east=range(x1, x2))
+        new_ds = reduced_ds.isel(time=init, south_north=range(y1, y2), west_east=range(x1, x2))
         new_ds.load()
         part_index_array = grand_index_array[grand_index_array[:, 0] == init]
         for sample in range(len(part_index_array)):
@@ -207,7 +200,7 @@ def predictors_from_ensemble(ensemble, xlim, ylim, variables=(), latlon=True, fo
                     print('predictors_from_ensemble: variable %d of %d, sample %d of %d' %
                           (v+1, num_var, sample_count+1, num_samples))
                 ind = part_index_array[sample]
-                field = new_ds[variable].isel(time=ind[1]).values.reshape((num_members, num_f_hours, num_y, num_x))
+                field = new_ds[variable].isel(fhour=ind[1]).values.reshape((num_members, num_f_hours, num_y, num_x))
                 if convolution is None:
                     predictors[sample_count, v, ...] = field
                 else:
@@ -325,27 +318,20 @@ def predictors_from_ae_meso(ae_ds, ensemble, xlim, ylim, variables=(), forecast_
         stations_dict[station] = (ae_ds[station].attrs['LATITUDE'], ae_ds[station].attrs['LONGITUDE'])
 
     # Get the indexes of all training samples
-    num_init = ae_ds.dims['init_date']
+    num_init = ae_ds.dims['time']
     grand_index_list = []
-    grand_time_list = []
     if verbose:
         print('predictors_from_ae_meso: getting indices of all samples')
     for init in range(num_init):
-        init_date = ae_ds['init_date'].values.astype('datetime64[ms]').astype(datetime)[init]
         sample_train_index_list = []
-        sample_train_time_list = []
         try:
             for f in forecast_hours:
-                f_time = init_date + timedelta(hours=f)
-                # Complex indexing to deal with how xarray concatenates the time variable
-                f_index = list(ae_ds['time'].values).index(np.datetime64(f_time))
+                f_index = list(ae_ds['fhour'].values).index(f)
                 sample_train_index_list.append(f_index)
-                sample_train_time_list.append(f_time)
         except (KeyError, IndexError):
-            print('predictors_from_ae_meso warning: time index (%s) not found in data' % f_time)
+            print('predictors_from_ae_meso warning: forecast hour (%s) not found in data' % f)
             continue
         grand_index_list.append([init, sample_train_index_list])
-        grand_time_list.append([init_date, sample_train_time_list])
 
     # Define the array
     num_x = x2 - x1
@@ -353,7 +339,7 @@ def predictors_from_ae_meso(ae_ds, ensemble, xlim, ylim, variables=(), forecast_
     if num_x < 1 or num_y < 1:
         raise ValueError("invalid 'xlim' or 'ylim'; must be monotonically increasing")
     num_var = len(variables)
-    num_samples = len(grand_time_list)
+    num_samples = len(grand_index_list)
     num_members = ae_ds.dims['member']
     num_f_hours = len(forecast_hours)
     if convolution is None:
@@ -381,7 +367,7 @@ def predictors_from_ae_meso(ae_ds, ensemble, xlim, ylim, variables=(), forecast_
             if convolution is None:
                 fields = []
                 for station in stations:
-                    field = ae_ds[station].isel(init_date=ind[0], time=ind[1], variable=v_ind).values
+                    field = ae_ds[station].isel(time=ind[0], fhour=ind[1], variable=v_ind).values
                     fields.append(field)
                 predictors[sample, v, ...] = np.array(fields).transpose((1, 2, 0))
             else:
@@ -399,7 +385,7 @@ def predictors_from_ae_meso(ae_ds, ensemble, xlim, ylim, variables=(), forecast_
                     stations = find_stations_dict(stations_dict, lo, la)
                     fields = []
                     for station in stations:
-                        field = ae_ds[station].isel(init_date=ind[0], time=ind[1], variable=v_ind).values
+                        field = ae_ds[station].isel(time=ind[0], fhour=ind[1], variable=v_ind).values
                         fields.append(field)
                     fields = np.array(fields)
                     new_field = _conv_agg(fields, convolution_agg, axis=0)

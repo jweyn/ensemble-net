@@ -37,7 +37,7 @@ ensemble.forecast_hour_coord = forecast_hours  # Not good practice, but an overr
 ensemble.retrieve(init_dates, forecast_hours, members, get_ncar_netcdf=False, verbose=True)
 ensemble.write(variables, forecast_hours=forecast_hours, members=members, use_ncar_netcdf=False, verbose=True)
 ensemble.load(coords=[], autoclose=True,
-              chunks={'member': 10, 'time': 12, 'south_north': 100, 'west_east': 100})
+              chunks={'member': 10, 'fhour': 12, 'south_north': 100, 'west_east': 100})
 
 # Subset with grid parameters
 lat_0 = 25.
