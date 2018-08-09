@@ -155,7 +155,7 @@ class NCARArray(object):
         look at when indexing. Can be 'default' to reset to the default members 1--10 or an iterable of integer member
         IDs.
 
-        :param forecast_hour_coord: iter: forecast hours to set, or 'default'
+        :param member_coord: iter: member identifiers to set, or 'default'
         :return:
         """
         if member_coord == 'default':
@@ -395,11 +395,10 @@ class NCARArray(object):
             grib_data.close()
 
         def read_write_grib(file_name, is_grib2):
-            grib_dict = {}
             exists, exists_file_name = _check_exists(file_name, path=True)
             if not exists:
                 print('* Warning: file %s not found' % file_name)
-                return grib_dict
+                return
             if verbose:
                 print('Loading %s' % exists_file_name)
             _unzip(exists_file_name)
@@ -451,7 +450,7 @@ class NCARArray(object):
                     except BaseException as e:
                         print("* Warning: failed to write %s to netCDF file ('%s')" % (var, str(e)))
             grib_data.close()
-            return grib_dict
+            return
 
         # We're gonna have to do this the ugly way, with the netCDF4 module.
         # Iterate over dates, create a netCDF variable, and write to a netCDF file
@@ -548,6 +547,10 @@ class NCARArray(object):
                             os.remove(diags_file_name)
 
             nc_fid.close()
+            if init_coord:
+                if verbose:
+                    print('* Warning: failed to find any data for %s. Deleting the file.' % init_date)
+                os.remove(nc_file_name)
 
     def load(self, concat_dim='init_date', **dataset_kwargs):
         """
