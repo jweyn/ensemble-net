@@ -12,7 +12,6 @@ from datetime import datetime
 import types
 import pickle
 import tempfile
-import keras.models
 from copy import deepcopy
 
 
@@ -26,6 +25,8 @@ def make_keras_picklable():
 
     :return:
     """
+    import keras.models
+
     def __getstate__(self):
         model_str = ""
         with tempfile.NamedTemporaryFile(suffix='.hdf5', delete=True) as fd:
