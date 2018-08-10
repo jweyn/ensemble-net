@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 import pickle
 import os
+import random
 from ..util import meso_date_to_datetime, date_to_meso_date
 from datetime import timedelta
 
@@ -337,3 +338,31 @@ class MesoWest(Meso):
         """
         meta = self.metadata(**kwargs)
         self.Metadata = meta
+
+    def trim_stations(self, missing_tolerance=0.05):
+        """
+        Trims stations in the loaded data that have a larger fraction of missing values than missing_tolerance.
+
+        :param missing_tolerance: float: fraction of missing values allowed in a station's timeseries
+        :return:
+        """
+        def get_count(data):
+            station_list = list(data.keys())
+            random.shuffle(station_list)
+            n_s = len(station_list) // 10
+            count = 0
+            for s in range(n_s):
+                count = max(count, np.sum(~np.isnan(data[station_list[s]].values)))
+            return count
+
+        def trim_stations(data, num):
+            new_data = {}
+            for s in data.keys():
+                if np.sum(~np.isnan(data[s].values)) >= num:
+                    new_data[s] = data[s]
+            return new_data
+
+        if missing_tolerance > 1. or missing_tolerance < 0.:
+            raise ValueError("'missing_tolerance' must be between 0 and 1")
+        count_non_missing = (1 - missing_tolerance) * get_count(self.Data)
+        self.Data = trim_stations(self.Data, count_non_missing)
