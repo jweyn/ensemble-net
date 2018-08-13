@@ -76,7 +76,7 @@ if retrieve_forecast_data:
     ensemble.retrieve(init_dates, forecast_hours, members, get_ncar_netcdf=False, verbose=True)
     ensemble.write(forecast_variables, forecast_hours=forecast_hours, members=members, use_ncar_netcdf=False,
                    verbose=True)
-ensemble.load(coords=[], autoclose=True,
+ensemble.open(coords=[], autoclose=True,
               chunks={'member': 10, 'fhour': 12, 'south_north': 100, 'west_east': 100})
 
 # Load observation data

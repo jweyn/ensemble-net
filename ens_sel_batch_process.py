@@ -99,7 +99,7 @@ for date in dates:
     idate += 1
     print('Ensemble predictors for %s' % date)
     ensemble.set_init_dates([date])
-    ensemble.load(coords=[], autoclose=True,
+    ensemble.open(coords=[], autoclose=True,
                   chunks={'member': 10, 'time': 12, 'south_north': 100, 'west_east': 100})
     raw_forecast_predictors = preprocessing.predictors_from_ensemble(ensemble, (lon_0, lon_1), (lat_0, lat_1),
                                                                      forecast_hours=tuple(forecast_hours),
@@ -159,7 +159,7 @@ else:
 
     # Reload ensemble with all data
     ensemble.set_init_dates(dates)
-    ensemble.load(coords=[], autoclose=True,
+    ensemble.open(coords=[], autoclose=True,
                   chunks={'member': 10, 'time': 12, 'south_north': 100, 'west_east': 100})
     error_ds = ae_meso(ensemble, meso)
     error_ds.to_netcdf(ae_meso_file)
