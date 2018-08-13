@@ -41,7 +41,7 @@ ensemble = NCARArray(root_directory='/Users/jweyn/Data/NCAR_Ensemble',)
 ensemble.set_init_dates(init_dates)
 # ensemble.retrieve(init_dates, forecast_hours, members, get_ncar_netcdf=False, verbose=True)
 # ensemble.write(variables, forecast_hours=forecast_hours, use_ncar_netcdf=False, verbose=True)
-ensemble.load(coords=[], autoclose=True,
+ensemble.open(coords=[], autoclose=True,
               chunks={'member': 1, 'fhour': 12, 'south_north': 100, 'west_east': 100})
 
 

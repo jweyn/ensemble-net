@@ -52,6 +52,9 @@ data_end_date = datetime.utcnow() - timedelta(days=3)
 dir_path = os.path.dirname(os.path.realpath(__file__))
 grib2_table = np.genfromtxt('%s/gefsr_grib_table.csv' % dir_path, dtype='str', delimiter=',')
 
+# netCDF fill value
+fill_value = np.array(nc.default_fillvals['f4']).astype(np.float32)
+
 
 # ==================================================================================================================== #
 # GEFSRArray object class
@@ -87,30 +90,40 @@ class GR2Array(object):
         # Data
         self.Dataset = None
         self.basemap = None
+        self._lat_array = None
+        self._lon_array = None
 
     @property
     def lat(self):
+        if self._lat_array is not None:
+            return self._lat_array
         try:
             lat = self.Dataset.variables['latitude'][:]
             if len(lat.shape) > 2:
-                return lat[0, ...].values
+                self._lat_array = lat[0, ...].values
+                return self._lat_array
             else:
-                return lat.values
+                self._lat_array = lat.values
+                return self._lat_array
         except AttributeError:
-            raise AttributeError('Call to lat method is only valid after data are loaded.')
+            raise AttributeError('Call to lat method is only valid after data are opened.')
         except KeyError:
             return
 
     @property
     def lon(self):
+        if self._lon_array is not None:
+            return self._lon_array
         try:
             lon = self.Dataset.variables['longitude'][:]
             if len(lon.shape) > 2:
-                return lon[0, ...].values
+                self._lon_array = lon[0, ...].values
+                return self._lon_array
             else:
-                return lon.values
+                self._lon_array = lon.values
+                return self._lon_array
         except AttributeError:
-            raise AttributeError('Call to lon method is only valid after data are loaded.')
+            raise AttributeError('Call to lon method is only valid after data are opened.')
         except KeyError:
             return
 
@@ -321,13 +334,15 @@ class GR2Array(object):
             nc_var = nc_fid.createVariable('latitude', np.float32, ('lat', 'lon'), zlib=True)
             nc_var.setncatts({
                 'long_name': 'Latitude',
-                'units': 'degrees_north'
+                'units': 'degrees_north',
+                '_FillValue': fill_value
             })
             nc_fid.variables['latitude'][:] = lat
             nc_var = nc_fid.createVariable('longitude', np.float32, ('lat', 'lon'), zlib=True)
             nc_var.setncatts({
                 'long_name': 'Longitude',
-                'units': 'degrees_east'
+                'units': 'degrees_east',
+                '_FillValue': fill_value
             })
             nc_fid.variables['longitude'][:] = lon
             grib_data.close()
@@ -453,7 +468,8 @@ class GR2Array(object):
                                                    ('time', 'member', 'fhour', 'lat', 'lon'), zlib=True)
                     nc_var.setncatts({
                         'long_name': row[2],
-                        'units': row[4]
+                        'units': row[4],
+                        '_FillValue': fill_value
                     })
                 # Now go through the member files to add data to the netCDF file
                 for member in members:
@@ -481,10 +497,10 @@ class GR2Array(object):
 
             nc_fid.close()
 
-    def load(self, concat_dim='time', **dataset_kwargs):
+    def open(self, concat_dim='time', **dataset_kwargs):
         """
-        Load an xarray multi-file Dataset for the processed files with initialization dates in self.dataset_init_dates.
-        Once loaded, this Dataset is accessible by self.Dataset.
+        Open an xarray multi-file Dataset for the processed files with initialization dates in self.dataset_init_dates.
+        Once opened, this Dataset is accessible by self.Dataset.
 
         :param concat_dim: passed to xarray.open_mfdataset()
         :param dataset_kwargs: kwargs passed to xarray.open_mfdataset()
@@ -521,6 +537,11 @@ class GR2Array(object):
         """
         if self.Dataset is not None:
             self.Dataset.close()
+            self.Dataset = None
+            self._lon_array = None
+            self._lat_array = None
+        else:
+            raise ValueError('no Dataset to close')
 
     def generate_basemap(self, llcrnrlat=None, llcrnrlon=None, urcrnrlat=None, urcrnrlon=None):
         """

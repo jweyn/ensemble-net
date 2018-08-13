@@ -21,7 +21,7 @@ variables = ('TMP2', 'MSLP', 'Z500', 'Z850')
 gr2.set_init_dates(init_dates)
 gr2.retrieve(init_dates, variables, members, verbose=True)
 gr2.write(variables, members=members, omit_existing=True, verbose=True)
-gr2.load(autoclose=True)
+gr2.open(autoclose=True)
 
 plot_variable = 'TMP2'
 plot_f_hour = forecast_hours[-1]

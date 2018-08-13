@@ -21,7 +21,7 @@ def train_data_from_ensemble(ncar, xlim, ylim, variables=(), latlon=False, lead_
     if a forecast for one hour ahead is desired with two time steps for training each 1 hour apart, this will produce
     nowcasts for hour 0 with training on hours -2 and -1.
 
-    :param ncar: NCARArray object with .load() method called
+    :param ncar: NCARArray object with .open() method called
     :param variables: tuple of str: names of variables to retrieve from the data (see data docs)
     :param xlim: tuple: minimum and maximum x-direction grid points (or longitude if latlon == True)
     :param ylim: tuple: minimum and maximum y-direction grid points (or latitude if latlon == True)

@@ -94,7 +94,7 @@ def predictors_from_ensemble(ensemble, xlim, ylim, variables=(), latlon=True, fo
     be provided; these integers determine the size of the convolution pass in the spatial directions (x,y). The
     parameter 'convolution_step' determines the number of grid points to advance forward in space at each convolution.
 
-    :param ensemble: NCARArray or GR2Array object with .load() method called
+    :param ensemble: NCARArray or GR2Array object with .open() method called
     :param variables: tuple of str: names of variables to retrieve from the data (see data docs)
     :param xlim: tuple: minimum and maximum x-direction grid points (or longitude if latlon == True)
     :param ylim: tuple: minimum and maximum y-direction grid points (or latitude if latlon == True)
@@ -231,7 +231,7 @@ def predictors_from_ae_meso(ae_ds, ensemble, xlim, ylim, variables=(), forecast_
     available stations in the ae_mesowest dataset are combined into one metric at each convolution area.
 
     :param ae_ds: xarray Dataset: result from ensemble_net.verify.ae_mesowest() for the ensemble
-    :param ensemble: NCARArray object with .load() method called
+    :param ensemble: NCARArray object with .open() method called
     :param xlim: tuple or list: longitude boundary limits
     :param ylim: tuple or list: latitude boundary limits
     :param variables: iter: list of variables to include (results in error if variable not in dataset)

@@ -56,6 +56,9 @@ n0r_dims = (2600, 6000)
 n0q_dims = (5200, 12000)
 n0q_new_dims = (5400, 12200)
 
+# netCDF fill value
+fill_value = np.array(nc.default_fillvals['f4']).astype(np.float32)
+
 
 # ==================================================================================================================== #
 # IEMRadar object class
@@ -227,12 +230,14 @@ class IEMRadar(object):
         nc_var = nc_fid.createVariable('lat', np.float32, 'lat', zlib=True)
         nc_var.setncatts({
             'long_name': 'Latitude',
-            'units': 'degrees_north'
+            'units': 'degrees_north',
+            '_FillValue': fill_value
         })
         nc_var = nc_fid.createVariable('lon', np.float32, 'lon', zlib=True)
         nc_var.setncatts({
             'long_name': 'Longitude',
-            'units': 'degrees_east'
+            'units': 'degrees_east',
+            '_FillValue': fill_value
         })
 
         # Create the reflectivity variable
@@ -241,7 +246,8 @@ class IEMRadar(object):
         nc_var.setncatts({
             'long_name': 'Base reflectivity',
             'units': 'dBZ',
-            'coordinates': 'lon lat'
+            'coordinates': 'lon lat',
+            '_FillValue': fill_value
         })
 
         # Iterate over files and write them to the netCDF file
@@ -263,9 +269,9 @@ class IEMRadar(object):
             nc_fid.variables['composite_%s' % self._composite_type][time_index, :, :] = \
                 np.array(read_nc_fid.variables['composite_%s' % self._composite_type][:ny, :nx], dtype=np.float32)
 
-    def load(self, **dataset_kwargs):
+    def open(self, **dataset_kwargs):
         """
-        Load an xarray Dataset for the initialization dates in self.dataset_init_dates. Once loaded, this
+        Open an xarray Dataset for the initialization dates in self.dataset_init_dates. Once opened, this
         Dataset is accessible by self.Dataset.
 
         :param dataset_kwargs: kwargs passed to xarray.open_mfdataset()
