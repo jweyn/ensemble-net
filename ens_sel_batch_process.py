@@ -13,7 +13,7 @@ algorithm.
 from ensemble_net.data_tools import NCARArray, MesoWest
 from ensemble_net.util import date_to_meso_date
 from ensemble_net.verify import ae_meso
-from ensemble_net.ensemble_selection import preprocessing, verify
+from ensemble_net.ensemble_selection import preprocessing
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -66,6 +66,10 @@ month_list = []
 for m in range(len(unique_months)):
     month_list.append(list(dates[months == unique_months[m]].to_pydatetime()))
 dates = list(dates.to_pydatetime())
+
+
+# netCDF fill value
+fill_value = np.array(nc.default_fillvals['f4']).astype(np.float32)
 
 
 # Generate the dataset on disk for the predictors. The first predictor arrays will determine the dimensions.
@@ -124,10 +128,11 @@ for date in dates:
             ncf.createDimension('convolution', raw_forecast_predictors.shape[-3])
             nc_var = ncf.createVariable('ENS_PRED', np.float32,
                                         ('init_date', 'ens_var', 'member', 'ens_time', 'convolution', 'ny', 'nx'),
-                                        zlib=True)
+                                        fill_value=fill_value, zlib=True)
         else:
             nc_var = ncf.createVariable('ENS_PRED', np.float32,
-                                        ('init_date', 'ens_var', 'member', 'ens_time', 'ny', 'nx'), zlib=True)
+                                        ('init_date', 'ens_var', 'member', 'ens_time', 'ny', 'nx'),
+                                        fill_value=fill_value, zlib=True)
         nc_var.setncatts({
             'long_name': 'Predictors from ensemble',
             'units': 'N/A'
@@ -183,11 +188,13 @@ ncf.createDimension('obs_var', raw_error_predictors.shape[1])
 ncf.createDimension('obs_time', raw_error_predictors.shape[-2])
 if convolved:
     nc_var = ncf.createVariable('AE_PRED', np.float32,
-                                ('init_date', 'obs_var', 'member', 'obs_time', 'convolution'), zlib=True)
+                                ('init_date', 'obs_var', 'member', 'obs_time', 'convolution'),
+                                fill_value=fill_value, zlib=True)
 else:
     ncf.createDimension('station', raw_error_predictors.shape[-1])
     nc_var = ncf.createVariable('AE_PRED', np.float32,
-                                ('init_date', 'obs_var', 'member', 'obs_time', 'station'), zlib=True)
+                                ('init_date', 'obs_var', 'member', 'obs_time', 'station'),
+                                fill_value=fill_value, zlib=True)
 nc_var.setncatts({
     'long_name': 'Predictors from MesoWest observation errors',
     'units': 'N/A'
@@ -198,10 +205,10 @@ ncf.variables['AE_PRED'][:] = raw_error_predictors
 # Write targets to the file
 if convolved:
     nc_var = ncf.createVariable('AE_TAR', np.float32,
-                                ('init_date', 'obs_var', 'member', 'convolution'), zlib=True)
+                                ('init_date', 'obs_var', 'member', 'convolution'), fill_value=fill_value, zlib=True)
 else:
     nc_var = ncf.createVariable('AE_TAR', np.float32,
-                                ('init_date', 'obs_var', 'member', 'station'), zlib=True)
+                                ('init_date', 'obs_var', 'member', 'station'), fill_value=fill_value, zlib=True)
 nc_var.setncatts({
     'long_name': 'Targets from MesoWest observation errors',
     'units': 'N/A'
