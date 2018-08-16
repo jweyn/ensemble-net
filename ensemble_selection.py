@@ -30,7 +30,7 @@ model_file = '%s/selector_201504-201603_no_c' % root_data_dir
 convolved = False
 
 # Copy file to scratch space
-copy_file_to_scratch = False
+copy_file_to_scratch = True
 
 # Neural network configuration and options
 chunk_size = 10
@@ -51,7 +51,8 @@ def process_chunk(ds, ):
     forecast_predictors, fpi = preprocessing.convert_ensemble_predictors_to_samples(ds['ENS_PRED'].values,
                                                                                     convolved=convolved)
     ae_predictors, epi = preprocessing.convert_ae_meso_predictors_to_samples(ds['AE_PRED'].values, convolved=convolved)
-    ae_targets, eti = preprocessing.convert_ae_meso_predictors_to_samples(ds['AE_TAR'].values, convolved=convolved)
+    ae_targets, eti = preprocessing.convert_ae_meso_predictors_to_samples(np.expand_dims(ds['AE_TAR'].values, 3),
+                                                                          convolved=convolved)
     combined_predictors = preprocessing.combine_predictors(forecast_predictors, ae_predictors)
 
     # Remove samples with NaN
@@ -69,7 +70,8 @@ try:
 except KeyError:
     copy_file_to_scratch = False
 if copy_file_to_scratch:
-    scratch_file = '/scratch/%s/%s/%s' % (os.environ['USER'], os.environ['SLURM_JOB_ID'], predictor_file)
+    predictor_file_name = predictor_file.split('/')[-1]
+    scratch_file = '/scratch/%s/%s/%s' % (os.environ['USER'], os.environ['SLURM_JOB_ID'], predictor_file_name)
     print('Copying predictor file to scratch space...')
     copyfile(predictor_file, scratch_file)
     predictor_file = scratch_file

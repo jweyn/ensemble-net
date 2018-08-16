@@ -124,6 +124,7 @@ class EnsembleSelector(object):
         """
         if self.impute:
             self.imputer_fit(predictors, targets)
+            predictors, targets = self.imputer_transform(predictors, y=targets)
         self.scaler_fit(predictors)
 
     def fit(self, predictors, targets, initialize=True, **kwargs):
