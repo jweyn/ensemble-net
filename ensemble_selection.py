@@ -18,7 +18,33 @@ import pandas as pd
 import time
 import xarray as xr
 import os
+from shutil import copyfile
 
+
+#%% User parameters
+
+# Paths to important files
+root_data_dir = '%s/Data/ensemble-net' % os.environ['WORKDIR']
+predictor_file = '%s/predictors_201504-201603_28N43N100W80W_x4_no_c.nc' % root_data_dir
+model_file = '%s/selector_201504-201603_no_c' % root_data_dir
+convolved = False
+
+# Copy file to scratch space
+copy_file_to_scratch = False
+
+# Neural network configuration and options
+chunk_size = 10
+batch_size = 50
+epochs_per_chunk = 10
+loops = 4
+impute_missing = True
+val_set = 'first'
+val_size = 5
+# Use multiple GPUs
+n_gpu = 1
+
+
+#%% End user configuration
 
 def process_chunk(ds, ):
     forecast_predictors, fpi = preprocessing.convert_ensemble_predictors_to_samples(ds['ENS_PRED'].values,
@@ -36,30 +62,20 @@ def process_chunk(ds, ):
     return p, t
 
 
-# Paths to important files
-root_data_dir = '%s/Data/ensemble-net' % os.environ['WORKDIR']
-predictor_file = '%s/predictors_201504-201603_28N43N100W80W_x4_no_c.nc' % root_data_dir
-model_file = '%s/selector_201504-201603_no_c' % root_data_dir
-convolved = False
-
-
-# Copy file to scratch space
-copy_file_to_scratch = False
-
-
-# Neural network configuration and options
-chunk_size = 10
-batch_size = 50
-epochs_per_chunk = 10
-loops = 4
-impute_missing = True
-val_set = 'first'
-val_size = 5
-# Use multiple GPUs
-n_gpu = 1
+# Copy the file to scratch, if requested, and available
+try:
+    job_id = os.environ['SLURM_JOB_ID']
+except KeyError:
+    copy_file_to_scratch = False
+if copy_file_to_scratch:
+    scratch_file = '/scratch/%s/%s/%s' % (os.environ['USER'], os.environ['SLURM_JOB_ID'], predictor_file)
+    print('Copying predictor file to scratch space')
+    copyfile(predictor_file, scratch_file)
+    predictor_file = scratch_file
 
 
 # Load a Dataset with the predictors
+print('Opening predictor dataset %s' % predictor_file)
 predictor_ds = xr.open_dataset(predictor_file, mask_and_scale=True)
 num_dates = predictor_ds.ENS_PRED.shape[0]
 
@@ -123,9 +139,9 @@ for loop in range(loops):
     print('  Loop %d of %d' % (loop+1, loops))
     for chunk in range(len(chunks)):
         print('    Data chunk %d of %d' % (chunk+1, len(chunks)))
-        predictors, targets = (None, None)
-        predictor_ds.isel(init_date=chunks[chunk])
-        predictors, targets = process_chunk(predictor_ds)
+        predictors, targets, new_ds = (None, None, None)
+        new_ds = predictor_ds.isel(init_date=chunks[chunk])
+        predictors, targets = process_chunk(new_ds)
         selector.fit(predictors, targets, batch_size=batch_size, epochs=epochs_per_chunk, verbose=1,
                      validation_data=(p_val, t_val))
 
