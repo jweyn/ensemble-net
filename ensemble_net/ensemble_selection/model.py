@@ -113,19 +113,34 @@ class EnsembleSelector(object):
         else:
             return X_transform.reshape(X_shape)
 
-    def fit(self, predictors, targets, **kwargs):
+    def init_fit(self, predictors, targets):
+        """
+        Initialize the Imputer and Scaler of the model manually. This is useful for fitting the data pre-processors
+        on a larger set of data before calls to the model 'fit' method with smaller sets of data and initialize=False.
+
+        :param predictors: ndarray: predictor data
+        :param targets: ndarray: corresponding truth data
+        :return:
+        """
+        if self.impute:
+            self.imputer_fit(predictors, targets)
+        self.scaler_fit(predictors)
+
+    def fit(self, predictors, targets, initialize=True, **kwargs):
         """
         Fit the EnsembleSelector model. Also performs input feature scaling.
 
         :param predictors: ndarray: predictor data
         :param targets: ndarray: corresponding truth data
+        :param initialize: bool: if True, initializes the Imputer and Scaler to the given predictors. 'fit' must be
+            called with initialize=True the first time, or the Imputer and Scaler must be fit with 'init_fit'.
         :param kwargs: passed to the Keras 'fit' method
         :return:
         """
+        if initialize:
+            self.init_fit(predictors, targets)
         if self.impute:
-            self.imputer_fit(predictors, targets)
             predictors, targets = self.imputer_transform(predictors, y=targets)
-        self.scaler_fit(predictors)
         predictors_scaled = self.scaler_transform(predictors)
         # Need to scale the validation data if it is given
         if 'validation_data' in kwargs:

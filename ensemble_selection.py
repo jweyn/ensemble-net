@@ -35,6 +35,7 @@ copy_file_to_scratch = False
 # Neural network configuration and options
 chunk_size = 10
 batch_size = 50
+scaler_fit_size = 100
 epochs_per_chunk = 10
 loops = 4
 impute_missing = True
@@ -69,13 +70,13 @@ except KeyError:
     copy_file_to_scratch = False
 if copy_file_to_scratch:
     scratch_file = '/scratch/%s/%s/%s' % (os.environ['USER'], os.environ['SLURM_JOB_ID'], predictor_file)
-    print('Copying predictor file to scratch space')
+    print('Copying predictor file to scratch space...')
     copyfile(predictor_file, scratch_file)
     predictor_file = scratch_file
 
 
 # Load a Dataset with the predictors
-print('Opening predictor dataset %s' % predictor_file)
+print('Opening predictor dataset %s...' % predictor_file)
 predictor_ds = xr.open_dataset(predictor_file, mask_and_scale=True)
 num_dates = predictor_ds.ENS_PRED.shape[0]
 
@@ -130,6 +131,12 @@ while index < num_dates:
     chunks.append(slice(index, index + chunk_size))
     index += chunk_size
 
+# Initialize the model's Imputer and Scaler with a larger set of data
+print('Fitting the EnsembleSelector Imputer and Scaler...')
+fit_set = slice(start, start+scaler_fit_size)
+new_ds = predictor_ds.isel(init_date=fit_set)
+predictors, targets = process_chunk(new_ds)
+selector.init_fit(predictors, targets)
 
 # Do the online training
 # Train and evaluate the model
