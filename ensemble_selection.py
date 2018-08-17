@@ -40,7 +40,7 @@ epochs_per_chunk = 6
 loops = 10
 impute_missing = True
 val_set = 'first'
-val_size = 5
+val_size = 6
 # Use multiple GPUs
 n_gpu = 1
 
@@ -175,7 +175,8 @@ for loop in range(loops):
         process = multiprocessing.Process(target=subprocess_chunk, args=(1, new_ds, shared_chunk))
         process.start()
         # Fit the Selector
-        selector.fit(predictors, targets, batch_size=batch_size, epochs=epochs_per_chunk, verbose=1,
+        print('    Training...')
+        selector.fit(predictors, targets, batch_size=batch_size, epochs=epochs_per_chunk, initialize=False, verbose=1,
                      validation_data=(p_val, t_val))
         # Wait for the background process to finish
         process.join()
