@@ -14,7 +14,7 @@ chunks.
 from ensemble_net.util import save_model
 from ensemble_net.ensemble_selection import preprocessing, model, verify
 import numpy as np
-import pandas as pd
+import multiprocessing
 import time
 import xarray as xr
 import os
@@ -64,6 +64,14 @@ def process_chunk(ds, ):
     return p, t
 
 
+def subprocess_chunk(pid, ds, shared):
+    print('Process %d (%s): loading new predictors...' % (pid, os.getpid()))
+    p, t = process_chunk(ds)
+    shared['p'] = p
+    shared['t'] = t
+    return shared
+
+
 # Copy the file to scratch, if requested, and available
 try:
     job_id = os.environ['SLURM_JOB_ID']
@@ -84,6 +92,7 @@ num_dates = predictor_ds.ENS_PRED.shape[0]
 
 
 # Get dimensionality for formatted predictors/targets and a validation set
+print('Processing validation set...')
 if val_set == 'first':
     predictor_ds.isel(init_date=range(val_size))
 elif val_set == 'last':
@@ -130,7 +139,7 @@ else:
 chunks = []
 index = 1 * start
 while index < num_dates:
-    chunks.append(slice(index, index + chunk_size))
+    chunks.append(slice(index, min(index + chunk_size, num_dates)))
     index += chunk_size
 
 # Initialize the model's Imputer and Scaler with a larger set of data
@@ -144,15 +153,27 @@ selector.init_fit(predictors, targets)
 # Train and evaluate the model
 print('Training the EnsembleSelector model...')
 start_time = time.time()
+first_chunk = True
+manager = multiprocessing.Manager()
+shared_chunk = manager.dict()
 for loop in range(loops):
     print('  Loop %d of %d' % (loop+1, loops))
     for chunk in range(len(chunks)):
         print('    Data chunk %d of %d' % (chunk+1, len(chunks)))
         predictors, targets, new_ds = (None, None, None)
         new_ds = predictor_ds.isel(init_date=chunks[chunk])
-        predictors, targets = process_chunk(new_ds)
+        if first_chunk:
+            predictors, targets = process_chunk(new_ds)
+            first_chunk = False
+        else:
+            predictors, targets = (shared_chunk['p'].copy(), shared_chunk['t'].copy())
+            process = multiprocessing.Process(target=subprocess_chunk, args=(1, new_ds, shared_chunk))
+            process.start()
         selector.fit(predictors, targets, batch_size=batch_size, epochs=epochs_per_chunk, verbose=1,
                      validation_data=(p_val, t_val))
+        if not first_chunk:
+            # Wait for process to finish
+            process.join()
 
 end_time = time.time()
 
