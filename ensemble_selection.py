@@ -36,8 +36,8 @@ copy_file_to_scratch = True
 chunk_size = 10
 batch_size = 50
 scaler_fit_size = 100
-epochs_per_chunk = 10
-loops = 4
+epochs_per_chunk = 6
+loops = 10
 impute_missing = True
 val_set = 'first'
 val_size = 5
@@ -161,19 +161,24 @@ for loop in range(loops):
     for chunk in range(len(chunks)):
         print('    Data chunk %d of %d' % (chunk+1, len(chunks)))
         predictors, targets, new_ds = (None, None, None)
-        new_ds = predictor_ds.isel(init_date=chunks[chunk])
+        # If we're on the first chunk, we need to do an initial set of the predictors and targets. Afterwards, we
+        # spawn a background process to load the next chunk while training on the current one.
         if first_chunk:
+            new_ds = predictor_ds.isel(init_date=chunks[chunk])
             predictors, targets = process_chunk(new_ds)
             first_chunk = False
         else:
             predictors, targets = (shared_chunk['p'].copy(), shared_chunk['t'].copy())
-            process = multiprocessing.Process(target=subprocess_chunk, args=(1, new_ds, shared_chunk))
-            process.start()
+        # Process the next chunk
+        next_chunk = (chunk + 1 if chunk < len(chunks) - 1 else 0)
+        new_ds = predictor_ds.isel(init_date=chunks[next_chunk])
+        process = multiprocessing.Process(target=subprocess_chunk, args=(1, new_ds, shared_chunk))
+        process.start()
+        # Fit the Selector
         selector.fit(predictors, targets, batch_size=batch_size, epochs=epochs_per_chunk, verbose=1,
                      validation_data=(p_val, t_val))
-        if not first_chunk:
-            # Wait for process to finish
-            process.join()
+        # Wait for the background process to finish
+        process.join()
 
 end_time = time.time()
 
