@@ -142,12 +142,14 @@ while index < num_dates:
     chunks.append(slice(index, min(index + chunk_size, num_dates)))
     index += chunk_size
 
+
 # Initialize the model's Imputer and Scaler with a larger set of data
 print('Fitting the EnsembleSelector Imputer and Scaler...')
 fit_set = slice(start, start+scaler_fit_size)
 new_ds = predictor_ds.isel(init_date=fit_set)
 predictors, targets = process_chunk(new_ds)
 selector.init_fit(predictors, targets)
+
 
 # Do the online training
 # Train and evaluate the model
@@ -188,5 +190,30 @@ print("\nTrain time -- %s seconds --" % (end_time - start_time))
 print('Test loss:', score[0])
 print('Test mean absolute error:', score[1])
 
+
+# Save the model, if requested
 if model_file is not None:
+    print('Saving model to disk...')
     save_model(selector, model_file)
+
+
+# Run the selection on the validation set
+for day in range(start, start + val_size):
+    day_as_list = [day]
+    print('\nDay %d:' % day)
+    new_ds = predictor_ds.isel(init_date=day_as_list)
+    select_predictors, select_shape = preprocessing.format_select_predictors(new_ds.ENS_PRED.values,
+                                                                             new_ds.AE_PRED.values,
+                                                                             None, convolved=convolved, num_members=10)
+    select_verif = verify.select_verification(new_ds.AE_TAR.values, select_shape,
+                                              convolved=convolved, agg=verify.stdmean)
+    select_verif_12 = verify.select_verification(new_ds.AE_PRED[:, :, :, [-1]].values, select_shape,
+                                                 convolved=convolved, agg=verify.stdmean)
+    selection = selector.select(select_predictors, select_shape, agg=verify.stdmean)
+    ranks = np.vstack((selection[:, 1], select_verif[:, 1], select_verif_12[:, 1])).T
+    scores = np.vstack((selection[:, 0], select_verif[:, 0], select_verif_12[:, 0])).T
+    print(ranks)
+    print('Rank score of Selector: %f' % verify.rank_score(ranks[:, 0], ranks[:, 1]))
+    print('Rank score of last-time estimate: %f' % verify.rank_score(ranks[:, 2], ranks[:, 1]))
+    print('MSE of Selector score: %f' % np.mean((scores[:, 0] - scores[:, 1]) ** 2.))
+    print('MSE of last-time estimate: %f' % np.mean((scores[:, 2] - scores[:, 1]) ** 2.))

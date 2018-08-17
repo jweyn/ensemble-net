@@ -34,6 +34,9 @@ def select_verification(verify, ensemble_shape, convolved=False, axis=0, agg=np.
         axis = ens_size - 1
     num_members = ensemble_shape[axis]
     # Format verification just like the targets
+    # Add an axis in 4th position if we don't have a 5-d array
+    if len(verify.shape) == 4:
+        verify = np.expand_dims(verify, 3)
     verify_predictors, spi = convert_ae_meso_predictors_to_samples(verify, convolved=convolved, split_members=True)
     verify_predictors = extract_members_from_samples(verify_predictors, num_members)
     verified = verify_predictors.reshape(verify_predictors.shape[:2] + (-1,))
@@ -56,20 +59,20 @@ def select_verification(verify, ensemble_shape, convolved=False, axis=0, agg=np.
     return np.vstack((agg_score, agg_rank)).T
 
 
-def rank(score, lowest_first=True):
+def rank(s, lowest_first=True):
     """
     Returns the ranking from lowest to highest (if lowest_first is True) of the elements in 'score' along 'axis'.
     TODO: add 'axis' argument for ND arrays
 
-    :param score: ndarray: array of scores
+    :param s: ndarray: array of scores
     :param lowest_first: bool: if True, ranks from lowest to highest score; otherwise from highest to lowest
     :return: ndarray: array of same shape as score containing ranks
     """
-    arg_sort = np.argsort(score)
+    arg_sort = np.argsort(s)
     if not lowest_first:
         arg_sort = arg_sort[::-1]
-    ranks = np.empty_like(score)
-    ranks[arg_sort] = np.arange(len(score))
+    ranks = np.empty_like(s)
+    ranks[arg_sort] = np.arange(len(s))
     return ranks
 
 
@@ -89,3 +92,31 @@ def stdmean(a, axis=-1):
     a_std = np.nanstd(a, axis=axes, keepdims=True)
     a = (a - a_mean) / a_std
     return np.nanmean(a, axis=axis)
+
+
+def rank_score(p, t, metric='mae', power=2., axis=-1):
+    """
+    Calculate an agreggated score for a ranking of ensemble members, placing more weight on the best ensembles.
+
+    :param p: ndarray: predicted ranking
+    :param t: ndarray: target ranking
+    :param metric: 'mae', 'mse', or 'rmse': method of differencing the predicted and target ranks
+    :param power: float: exponential of the weighting function. A larger exponential weights the best ensembles more.
+    :param axis: int: axis of calculation (ensemble member)
+    :return: ndarray: rank score
+    """
+    if p.shape != t.shape:
+        raise ValueError("shapes of 'p' and 't' must match")
+    if metric not in ['mae', 'mse', 'rmse']:
+        raise ValueError("'metric' must be 'mae', 'mse', or 'rmse'")
+    num_ranks = p.shape[axis]
+    weights_1d = ((num_ranks - np.arange(0, num_ranks)) / num_ranks) ** power
+    weights = weights_1d[t.astype(np.int)]
+    if metric == 'mae':
+        r = np.abs(p - t)
+    elif metric == 'mse':
+        r = (p - t) ** 2.
+    elif metric == 'rmse':
+        r = np.sqrt((p - t) ** 2.)
+    rs = np.sum(r * weights, axis=axis)
+    return rs

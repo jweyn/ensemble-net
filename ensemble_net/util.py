@@ -115,6 +115,7 @@ def load_model(file_name):
     :param file_name: str: base name of save files
     :return: model: loaded object
     """
+    import keras.models
     with open('%s.pkl' % file_name, 'rb') as f:
         model = pickle.load(f)
     model.model = keras.models.load_model('%s.keras' % file_name, compile=True)
