@@ -20,10 +20,13 @@ import xarray as xr
 import netCDF4 as nc
 from datetime import datetime, timedelta
 
+import warnings
+warnings.filterwarnings("ignore")
+
 
 # Ensemble data parameters
-start_init_date = datetime(2015, 4, 1)
-end_init_date = datetime(2016, 3, 31)
+start_init_date = datetime(2017, 4, 1)
+end_init_date = datetime(2017, 5, 31)
 forecast_hours = list(range(0, 25, 12))
 members = list(range(1, 11))
 retrieve_forecast_variables = ('REFC', 'REFD_MAX', 'TMP2', 'DPT2', 'MSLP', 'UGRD', 'VGRD', 'CAPE', 'CIN', 'LFTX',
@@ -53,9 +56,9 @@ retrieve_forecast_data = True
 load_existing_data = False
 # File paths, beginning with the directory in which to place the data
 root_data_dir = '/home/disk/wave/jweyn/Data/ensemble-net/'
-meso_file = '%s/mesowest-201504-201603.pkl' % root_data_dir
-ae_meso_file = '%s/mesowest-error-201504-201603.nc' % root_data_dir
-predictor_file = '%s/predictors_201504-201603_28N43N100W80W_x4_no_c.nc' % root_data_dir
+meso_file = '%s/mesowest-201704-201705.pkl' % root_data_dir
+ae_meso_file = '%s/mesowest-error-201704-201705.nc' % root_data_dir
+predictor_file = '%s/predictors_201704-201705_28N43N100W80W_x4_no_c.nc' % root_data_dir
 
 
 # Generate monthly batches of dates

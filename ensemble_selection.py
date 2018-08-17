@@ -94,12 +94,13 @@ num_dates = predictor_ds.ENS_PRED.shape[0]
 # Get dimensionality for formatted predictors/targets and a validation set
 print('Processing validation set...')
 if val_set == 'first':
-    predictor_ds.isel(init_date=range(val_size))
+    val_list = list(range(val_size))
 elif val_set == 'last':
-    predictor_ds.isel(init_date=slice(num_dates - val_size, None, None))
+    val_list = list(range(num_dates - val_size, num_dates))
 else:
     raise ValueError("'val_set' must be 'first' or 'last'")
-p_val, t_val = process_chunk(predictor_ds)
+new_ds = predictor_ds.isel(init_date=val_list)
+p_val, t_val = process_chunk(new_ds)
 input_shape = p_val.shape[1:]
 num_outputs = t_val.shape[1]
 

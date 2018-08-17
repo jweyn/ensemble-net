@@ -119,6 +119,7 @@ def load_model(file_name):
     with open('%s.pkl' % file_name, 'rb') as f:
         model = pickle.load(f)
     model.model = keras.models.load_model('%s.keras' % file_name, compile=True)
+    return model
 
 
 # ==================================================================================================================== #

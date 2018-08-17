@@ -594,3 +594,12 @@ def format_select_predictors(forecast, ae_meso, radar=None, convolved=False, num
     # TODO: will have to deal with NaN more elegantly in the future. Probably a "mask" array.
     # sel_combined_predictors[np.isnan(sel_combined_predictors)] = 0.5
     return sel_combined_predictors, sel_combined_predictors.shape[:2]
+
+
+class Preprocessor(object):
+    """
+    Class containing metadata and wrapper functions for processing data that enters the EnsembleSelector model.
+    """
+
+    def __init__(self):
+        self.convolved = False
