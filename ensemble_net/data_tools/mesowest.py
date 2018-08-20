@@ -18,6 +18,7 @@ import os
 import random
 from ..util import meso_date_to_datetime, date_to_meso_date
 from datetime import timedelta
+from collections import OrderedDict
 
 
 def _convert_variable_names(variables):
@@ -99,7 +100,7 @@ def _reformat_data(data, start, end):
     :param data: dict: result from Meso call
     :return: dict of pandas DataFrame objects where each key in the dict is a station
     """
-    new_data = {}
+    new_data = OrderedDict()
     for station_data in data['STATION']:
         # Assign to DataFrame
         obs = pd.DataFrame(station_data['OBSERVATIONS'])
@@ -202,7 +203,7 @@ def _concatenate_data(data, added_data):
 
 
 def _reformat_metadata(metadata):
-    new_data = {}
+    new_data = OrderedDict()
     for station_data in metadata['STATION']:
         new_data[station_data['STID']] = station_data
     return new_data
@@ -247,7 +248,7 @@ class MesoWest(Meso):
         except AttributeError:
             raise AttributeError('Call to lon method is only valid after metadata are loaded.')
 
-    def timeseries(self, start, end, chunks='year', verbose=False, **kwargs):
+    def timeseries(self, start, end, chunks='year', sort_keys=True, verbose=False, **kwargs):
         """
         Wrapper for the MesoPy 'timeseries' method. Takes in the same 'start', 'end', and 'kwargs'. The parameter
         'chunks' specifies whether data should be retrieved in groups of yearly, monthly, weekly, or daily timeseries.
@@ -256,6 +257,7 @@ class MesoWest(Meso):
         :param start: str: starting date for MesoPy timeseries (YYYYMMDDHHMM)
         :param end: str: ending date for MesoPy timeseries (YYYYMMDDHHMM)
         :param chunks: str: 'year', 'month', 'week', or 'day', the interval for retrieving data from the API
+        :param sort_keys: bool: if True, sorts the keys (station IDs) alphabetically in the resulting dictionary
         :param verbose: bool: print progress statements
         :param kwargs: passed to MesoPy.Meso.timeseries
         :return: dict of pandas DataFrames for each station
@@ -275,7 +277,10 @@ class MesoWest(Meso):
                 first = False
             else:
                 data = _concatenate_data(data, _reformat_data(ts, *chunk))
-        return data
+        if sort_keys:
+            return {s: data[s] for s in sorted(data)}
+        else:
+            return data
 
     def metadata(self, **kwargs):
         meta = super(MesoWest, self).metadata(**kwargs)
@@ -355,7 +360,7 @@ class MesoWest(Meso):
                 count = max(count, np.sum(~np.isnan(data[station_list[s]].values)))
             return count
 
-        def trim_stations(data, num):
+        def trim(data, num):
             new_data = {}
             for s in data.keys():
                 if np.sum(~np.isnan(data[s].values)) >= num:
@@ -365,4 +370,4 @@ class MesoWest(Meso):
         if missing_tolerance > 1. or missing_tolerance < 0.:
             raise ValueError("'missing_tolerance' must be between 0 and 1")
         count_non_missing = (1 - missing_tolerance) * get_count(self.Data)
-        self.Data = trim_stations(self.Data, count_non_missing)
+        self.Data = trim(self.Data, count_non_missing)

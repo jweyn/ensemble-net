@@ -57,6 +57,7 @@ load_existing_data = False
 # File paths, beginning with the directory in which to place the data
 root_data_dir = '/home/disk/wave/jweyn/Data/ensemble-net/'
 meso_file = '%s/mesowest-201704-201705.pkl' % root_data_dir
+copy_stations_file = '%s/mesowest-201504-201603.nc' % root_data_dir  # determines stations to trim; or None
 ae_meso_file = '%s/mesowest-error-201704-201705.nc' % root_data_dir
 predictor_file = '%s/predictors_201704-201705_28N43N100W80W_x4_no_c.nc' % root_data_dir
 
@@ -161,10 +162,17 @@ else:
     meso_end_date = date_to_meso_date(end_init_date + timedelta(hours=max(forecast_hours)))
     meso = MesoWest(token='')
     meso.load_metadata(bbox=bbox, network='1')
-    if not load_existing_data:
-        meso.load(meso_start_date, meso_end_date, chunks='day', file=meso_file, verbose=True,
-                  bbox=bbox, network='1', vars=verification_variables, units='temp|K', hfmetars='0')
+    meso.load(meso_start_date, meso_end_date, chunks='day', file=meso_file, verbose=True,
+              bbox=bbox, network='1', vars=verification_variables, units='temp|K', hfmetars='0')
 
+    if copy_stations_file is not None:
+        meso_copy = MesoWest(token='')
+        meso_copy.load('', '', file=copy_stations_file)
+        meso_copy.trim_stations(0.01)
+        keep_stations = meso_copy.Data.keys()
+        for station in meso.Data.keys():
+            if station not in keep_stations:
+                del meso.Data[station]
     # Reload ensemble with all data
     ensemble.set_init_dates(dates)
     ensemble.open(coords=[], autoclose=True,
@@ -173,13 +181,17 @@ else:
     error_ds.to_netcdf(ae_meso_file)
 
 # Thankfully, ensemble is only needed here for lat/lon values.
+if copy_stations_file:
+    mt = 1.0
+else:
+    mt = 0.01
 raw_error_predictors = preprocessing.predictors_from_ae_meso(error_ds, ensemble, (lon_0, lon_1), (lat_0, lat_1),
                                                              forecast_hours=tuple(forecast_hours),
                                                              variables=verification_variables,
                                                              convolution=convolution,
                                                              convolution_step=convolution_step,
                                                              convolution_agg=convolution_agg,
-                                                             missing_tolerance=0.01, verbose=True)
+                                                             missing_tolerance=mt, verbose=True)
 
 # Targets are the final time step in the error predictors. Faster to do it this way than with separate calls to the
 # predictors_from_ae_meso method for predictor and target data.
