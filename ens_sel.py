@@ -18,6 +18,7 @@ import multiprocessing
 import time
 import xarray as xr
 import os
+import random
 from shutil import copyfile
 
 
@@ -26,7 +27,8 @@ from shutil import copyfile
 # Paths to important files
 root_data_dir = '%s/Data/ensemble-net' % os.environ['WORKDIR']
 predictor_file = '%s/predictors_201504-201603_28N43N100W80W_x4_no_c.nc' % root_data_dir
-model_file = '%s/selector_201504-201603_no_c' % root_data_dir
+model_file = '%s/selector_201504-201603_no_c_300days' % root_data_dir
+result_file = '%s/result_201704-201705_28N43N100W80W_x4_no_c.nc' % root_data_dir
 convolved = False
 
 # Copy file to scratch space
@@ -37,10 +39,10 @@ chunk_size = 10
 batch_size = 50
 scaler_fit_size = 100
 epochs_per_chunk = 10
-loops = 6
+loops = 5
 impute_missing = True
-val_set = 'first'
-val_size = 6
+val = 'random'
+val_size = 46
 # Use multiple GPUs
 n_gpu = 1
 
@@ -89,17 +91,39 @@ if copy_file_to_scratch:
 print('Opening predictor dataset %s...' % predictor_file)
 predictor_ds = xr.open_dataset(predictor_file, mask_and_scale=True)
 num_dates = predictor_ds.ENS_PRED.shape[0]
+num_members = predictor_ds.AE_TAR.shape[2]
+num_stations = predictor_ds.AE_TAR.shape[-1]
+num_variables = predictor_ds.AE_TAR.shape[1]
 
 
-# Get dimensionality for formatted predictors/targets and a validation set
+# Get the indices for a validation set
 print('Processing validation set...')
-if val_set == 'first':
-    val_list = list(range(val_size))
-elif val_set == 'last':
-    val_list = list(range(num_dates - val_size, num_dates))
+if val == 'first':
+    val_set = list(range(0, val_size))
+    train_set = list(range(val_size, num_dates))
+elif val == 'last':
+    val_set = list(range(num_dates - val_size, num_dates))
+    train_set = list(range(0, num_dates - val_size))
+elif val == 'random':
+    train_set = list(range(num_dates))
+    val_set = []
+    for j in range(val_size):
+        i = random.choice(train_set)
+        val_set.append(i)
+        train_set.remove(i)
+    val_set.sort()
 else:
     raise ValueError("'val_set' must be 'first' or 'last'")
-new_ds = predictor_ds.isel(init_date=val_list)
+
+# Get chunks for online training
+chunks = []
+index = 0
+while index < len(train_set):
+    chunks.append(train_set[index:index + chunk_size])
+    index += chunk_size
+
+# Load the validation set
+new_ds = predictor_ds.isel(init_date=val_set)
 p_val, t_val = process_chunk(new_ds)
 input_shape = p_val.shape[1:]
 num_outputs = t_val.shape[1]
@@ -130,23 +154,9 @@ layers = (
 selector.build_model(layers=layers, gpus=n_gpu, loss='mse', optimizer='adam', metrics=['mae'])
 
 
-# Create chunks
-if val_set == 'first':
-    start = val_size
-    end = num_dates
-else:
-    start = 0
-    end = num_dates - val_size
-chunks = []
-index = 1 * start
-while index < num_dates:
-    chunks.append(slice(index, min(index + chunk_size, num_dates)))
-    index += chunk_size
-
-
 # Initialize the model's Imputer and Scaler with a larger set of data
 print('Fitting the EnsembleSelector Imputer and Scaler...')
-fit_set = slice(start, start+scaler_fit_size)
+fit_set = train_set[:scaler_fit_size]
 new_ds = predictor_ds.isel(init_date=fit_set)
 predictors, targets = process_chunk(new_ds)
 selector.init_fit(predictors, targets)
@@ -198,8 +208,37 @@ if model_file is not None:
     save_model(selector, model_file)
 
 
+#%% Process the results
+
+predicted = selector.predict(p_val)
+
+# Reshape the prediction and the targets to meaningful dimensions
+new_target_shape = (num_dates, num_members, num_stations, num_variables)
+predicted = predicted.reshape(new_target_shape)
+t_test = t_val.reshape(new_target_shape)
+
+# Create a Dataset for the results
+result = xr.Dataset(
+    coords={
+        'time': predictor_ds.time,
+        'member': predictor_ds.member,
+        'variable': predictor_ds.variable,
+        'station': range(new_target_shape[0])
+    }
+)
+
+result['time'] = (('time', ), predictor_ds['init_date'].isel(init_date=val_set))
+result['prediction'] = (('time', 'member', 'station', 'variable'), predicted)
+result['target'] = (('time', 'member', 'station', 'variable'), t_test)
+
 # Run the selection on the validation set
-for day in val_list:
+selector_scores = []
+selector_ranks = []
+verif_ranks = []
+verif_scores = []
+last_time_scores = []
+last_time_ranks = []
+for day in val_set:
     day_as_list = [day]
     print('\nDay %d:' % day)
     new_ds = predictor_ds.isel(init_date=day_as_list)
@@ -211,6 +250,12 @@ for day in val_list:
     select_verif_12 = verify.select_verification(new_ds.AE_PRED[:, :, :, [-1]].values, select_shape,
                                                  convolved=convolved, agg=verify.stdmean)
     selection = selector.select(select_predictors, select_shape, agg=verify.stdmean)
+    selector_scores.append(selection[:, 0])
+    selector_ranks.append(selection[:, 1])
+    verif_scores.append(select_verif[:, 0])
+    verif_ranks.append(select_verif[:, 1])
+    last_time_scores.append(select_verif_12[:, 0])
+    last_time_ranks.append(select_verif_12[:, 1])
     ranks = np.vstack((selection[:, 1], select_verif[:, 1], select_verif_12[:, 1])).T
     scores = np.vstack((selection[:, 0], select_verif[:, 0], select_verif_12[:, 0])).T
     print(ranks)
@@ -218,3 +263,11 @@ for day in val_list:
     print('Rank score of last-time estimate: %f' % verify.rank_score(ranks[:, 2], ranks[:, 1]))
     print('MSE of Selector score: %f' % np.mean((scores[:, 0] - scores[:, 1]) ** 2.))
     print('MSE of last-time estimate: %f' % np.mean((scores[:, 2] - scores[:, 1]) ** 2.))
+
+result['selector_scores'] = (('time', 'member'), selector_scores)
+result['selector_ranks'] = (('time', 'member'), selector_ranks)
+result['verif_scores'] = (('time', 'member'), verif_scores)
+result['verif_ranks'] = (('time', 'member'), verif_ranks)
+result['last_time_scores'] = (('time', 'member'), last_time_scores)
+result['last_time_ranks'] = (('time', 'member'), last_time_ranks)
+result.to_netcdf(result_file)

@@ -173,6 +173,7 @@ else:
         for station in meso.Data.keys():
             if station not in keep_stations:
                 del meso.Data[station]
+        # TODO: something for the stations that are missing in this new meso file
     # Reload ensemble with all data
     ensemble.set_init_dates(dates)
     ensemble.open(coords=[], autoclose=True,

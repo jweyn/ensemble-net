@@ -251,8 +251,7 @@ def predictors_from_ae_meso(ae_ds, ensemble, xlim, ylim, variables=(), forecast_
     """
     def get_count(ds):
         station_list = list(ds.data_vars.keys())
-        random.shuffle(station_list)
-        n_s = len(station_list) // 10
+        n_s = len(station_list)
         count = 0
         for s in range(n_s):
             count = max(count, np.sum(~np.isnan(ds[station_list[s]].values)))

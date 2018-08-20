@@ -353,8 +353,7 @@ class MesoWest(Meso):
         """
         def get_count(data):
             station_list = list(data.keys())
-            random.shuffle(station_list)
-            n_s = len(station_list) // 10
+            n_s = len(station_list)
             count = 0
             for s in range(n_s):
                 count = max(count, np.sum(~np.isnan(data[station_list[s]].values)))
