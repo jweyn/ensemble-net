@@ -36,8 +36,8 @@ copy_file_to_scratch = True
 chunk_size = 10
 batch_size = 50
 scaler_fit_size = 100
-epochs_per_chunk = 6
-loops = 10
+epochs_per_chunk = 10
+loops = 6
 impute_missing = True
 val_set = 'first'
 val_size = 6
@@ -199,7 +199,7 @@ if model_file is not None:
 
 
 # Run the selection on the validation set
-for day in range(start, start + val_size):
+for day in val_list:
     day_as_list = [day]
     print('\nDay %d:' % day)
     new_ds = predictor_ds.isel(init_date=day_as_list)
