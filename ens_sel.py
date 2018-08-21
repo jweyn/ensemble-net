@@ -213,21 +213,20 @@ if model_file is not None:
 predicted = selector.predict(p_val)
 
 # Reshape the prediction and the targets to meaningful dimensions
-new_target_shape = (num_dates, num_members, num_stations, num_variables)
+new_target_shape = (val_size, num_members, num_stations, num_variables)
 predicted = predicted.reshape(new_target_shape)
 t_test = t_val.reshape(new_target_shape)
 
 # Create a Dataset for the results
 result = xr.Dataset(
     coords={
-        'time': predictor_ds.time,
+        'time': predictor_ds['init_date'].isel(init_date=val_set),
         'member': predictor_ds.member,
-        'variable': predictor_ds.variable,
-        'station': range(new_target_shape[0])
+        'variable': predictor_ds.obs_var,
+        'station': range(num_stations)
     }
 )
 
-result['time'] = (('time', ), predictor_ds['init_date'].isel(init_date=val_set))
 result['prediction'] = (('time', 'member', 'station', 'variable'), predicted)
 result['target'] = (('time', 'member', 'station', 'variable'), t_test)
 
