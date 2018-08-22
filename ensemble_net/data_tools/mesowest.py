@@ -223,6 +223,7 @@ class MesoWest(Meso):
         self.Data = None
         self.Metadata = None
         self.data_variables = []
+        self.stations = []
 
     def lat(self, stations=None):
         if stations is None:
@@ -278,15 +279,19 @@ class MesoWest(Meso):
             else:
                 data = _concatenate_data(data, _reformat_data(ts, *chunk))
         if sort_keys:
-            return {s: data[s] for s in sorted(data)}
+            return OrderedDict((s, data[s]) for s in sorted(data))
         else:
             return data
 
-    def metadata(self, **kwargs):
+    def metadata(self, sort_keys=True, **kwargs):
         meta = super(MesoWest, self).metadata(**kwargs)
-        return _reformat_metadata(meta)
+        new_meta = _reformat_metadata(meta)
+        if sort_keys:
+            return OrderedDict((s, new_meta[s]) for s in sorted(new_meta))
+        else:
+            return new_meta
 
-    def load(self, start, end, chunks='year', file=None, verbose=False, **kwargs):
+    def load(self, start, end, file=None, chunks='year', verbose=False, **kwargs):
         """
         Retrieves a timeseries of data with the specified start and end times, and kwargs passed to the MesoPy
         'timeseries' method. Loads the concise, formatted data to the instance's 'Data' attribute. The parameter
@@ -330,7 +335,9 @@ class MesoWest(Meso):
                 pickle.dump(ts, handle, pickle.HIGHEST_PROTOCOL)
 
         self.Data = ts
+        self.stations = []
         for station, df in ts.items():
+            self.stations.append(station)
             self.data_variables = list(set(self.data_variables + list(df.columns)))
 
     def load_metadata(self, **kwargs):
@@ -370,3 +377,4 @@ class MesoWest(Meso):
             raise ValueError("'missing_tolerance' must be between 0 and 1")
         count_non_missing = (1 - missing_tolerance) * get_count(self.Data)
         self.Data = trim(self.Data, count_non_missing)
+        self.stations = list(self.Data.keys())

@@ -10,7 +10,7 @@ Methods for pre-processing data before use in an ensemble-selection model.
 
 import numpy as np
 import pickle
-import random
+from collections import OrderedDict
 from ..nowcast.preprocessing import train_data_from_pickle, train_data_to_pickle, delete_nan_samples
 from datetime import datetime, timedelta
 from numba import jit
@@ -222,9 +222,9 @@ def predictors_from_ensemble(ensemble, xlim, ylim, variables=(), latlon=True, fo
     return predictors
 
 
-def predictors_from_ae_meso(ae_ds, ensemble, xlim, ylim, variables=(), forecast_hours=(0, 12, 24),
+def predictors_from_ae_meso(ae_ds, ensemble, xlim, ylim, variables=(), forecast_hours=(0, 12, 24), sort_stations=True,
                             missing_tolerance=0.05, convolution=None, convolution_step=1, convolution_agg='mse',
-                            pickle_file=None, verbose=True):
+                            pickle_file=None, return_stations=False, verbose=True):
     """
     Compiles predictors from the error Dataset created by ensemble_net.verify.ae_mesowest(). See the docstring for
     'predictors_from_ensemble' for how the convolution works. If a convolution is requested in this function, then the
@@ -236,6 +236,7 @@ def predictors_from_ae_meso(ae_ds, ensemble, xlim, ylim, variables=(), forecast_
     :param ylim: tuple or list: latitude boundary limits
     :param variables: iter: list of variables to include (results in error if variable not in dataset)
     :param forecast_hours: iter: list of forecast hours at which to retrieve errors
+    :param sort_stations: bool: if True, sorts the order of the stations in a non-convolved predictor array
     :param missing_tolerance: float: fraction (0 to 1) of points which are tolerated as missing when selecting stations
     :param convolution: int or tuple: size of the convolution layer in (x,y) directions, or if int, square of specified
         size. If None, no convolution is performed and the number of samples is the number of initialization dates
@@ -246,15 +247,17 @@ def predictors_from_ae_meso(ae_ds, ensemble, xlim, ylim, variables=(), forecast_
         'mse': mean square error
         'rmse': root-mean-square-error
     :param pickle_file: str: if given, file to write pickled predictor array
+    :param return_stations: bool: if True, also returns the list of stations corresponding to the station dimension.
+        Ignored if 'convolution' is not None.
     :param verbose: bool: print progress statements
-    :return: ndarray: array of predictors
+    :return: ndarray: array of predictors (list: list of stations)
     """
     def get_count(ds):
         station_list = list(ds.data_vars.keys())
         n_s = len(station_list)
         count = 0
         for s in range(n_s):
-            count = max(count, np.sum(~np.isnan(ds[station_list[s]].values)))
+            count = max(count, ds[station_list[s]].values.size)
         return count
 
     def trim_stations(ds, num):
@@ -263,18 +266,18 @@ def predictors_from_ae_meso(ae_ds, ensemble, xlim, ylim, variables=(), forecast_
                 ds = ds.drop(s)
         return ds
 
-    def find_stations(ds, xl, yl):
-        result = []
-        for s in ds.data_vars.keys():
-            if ((yl[1] >= ds[s].attrs['LATITUDE'] >= yl[0]) and
-                    (xl[1] >= ds[s].attrs['LONGITUDE'] >= xl[0])):
-                result.append(s)
-        return result
-
-    def find_stations_dict(d, xl, yl):
+    def find_stations(d, xl, yl):
         result = []
         for s, ll in d.items():
             if (yl[1] >= ll[0] >= yl[0]) and (xl[1] >= ll[1] >= xl[0]):
+                result.append(s)
+        return result
+
+    def find_stations_in_array(d, ys, xs, tol=0.05):
+        result = []
+        for s, ll in d.items():
+            distance = (ys - ll[0]) ** 2 + (xs - ll[1]) ** 2
+            if np.min(distance) < tol:
                 result.append(s)
         return result
 
@@ -312,7 +315,7 @@ def predictors_from_ae_meso(ae_ds, ensemble, xlim, ylim, variables=(), forecast_
     # Get the lat/lon and reduce the stations
     count_non_missing = (1 - missing_tolerance) * get_count(ae_ds)
     ae_ds = trim_stations(ae_ds, count_non_missing)
-    stations_dict = {}
+    stations_dict = OrderedDict()
     for station in ae_ds.data_vars.keys():
         stations_dict[station] = (ae_ds[station].attrs['LATITUDE'], ae_ds[station].attrs['LONGITUDE'])
 
@@ -343,7 +346,9 @@ def predictors_from_ae_meso(ae_ds, ensemble, xlim, ylim, variables=(), forecast_
     num_f_hours = len(forecast_hours)
     if convolution is None:
         # Subset stations by the ones within the lat/lon arrays
-        stations = find_stations_dict(stations_dict, xlim, ylim)
+        stations = find_stations_in_array(stations_dict, lat, lon - 360.)
+        if sort_stations:
+            stations.sort()
         num_stations = len(stations)
         predictors = np.full((num_samples, num_var, num_members, num_f_hours, num_stations), np.nan, dtype=np.float32)
     else:
@@ -381,7 +386,7 @@ def predictors_from_ae_meso(ae_ds, ensemble, xlim, ylim, variables=(), forecast_
                             print('    75% of convolutions done')
                     la, lo = lats[c], lons[c]
                     lo -= 360.  # longitude in ºW
-                    stations = find_stations_dict(stations_dict, lo, la)
+                    stations = find_stations(stations_dict, lo, la)
                     fields = []
                     for station in stations:
                         field = ae_ds[station].isel(time=ind[0], fhour=ind[1], variable=v_ind).values
@@ -398,7 +403,10 @@ def predictors_from_ae_meso(ae_ds, ensemble, xlim, ylim, variables=(), forecast_
         with open(pickle_file, 'wb') as handle:
             pickle.dump(save_vars, handle, pickle.HIGHEST_PROTOCOL)
 
-    return predictors
+    if return_stations and convolution is None:
+        return predictors, stations
+    else:
+        return predictors
 
 
 def convert_ensemble_predictors_to_samples(predictors, convolved=False, split_members=False):

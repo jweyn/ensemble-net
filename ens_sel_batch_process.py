@@ -25,8 +25,8 @@ warnings.filterwarnings("ignore")
 
 
 # Ensemble data parameters
-start_init_date = datetime(2017, 4, 1)
-end_init_date = datetime(2017, 5, 31)
+start_init_date = datetime(2015, 4, 21)
+end_init_date = datetime(2016, 3, 31)
 forecast_hours = list(range(0, 25, 12))
 members = list(range(1, 11))
 retrieve_forecast_variables = ('REFC', 'REFD_MAX', 'TMP2', 'DPT2', 'MSLP', 'UGRD', 'VGRD', 'CAPE', 'CIN', 'LFTX',
@@ -51,15 +51,15 @@ convolution_agg = 'rmse'
 
 # If enabled, this option retrieves the forecast data from the NCAR server. Disable if data has already been processed
 # by this script or a different one.
-retrieve_forecast_data = True
+retrieve_forecast_data = False
 # If enabled, these options load data from files instead of performing calculations again.
-load_existing_data = False
+load_existing_data = True
 # File paths, beginning with the directory in which to place the data
 root_data_dir = '/home/disk/wave/jweyn/Data/ensemble-net/'
-meso_file = '%s/mesowest-201704-201705.pkl' % root_data_dir
-copy_stations_file = '%s/mesowest-201504-201603.nc' % root_data_dir  # determines stations to trim; or None
-ae_meso_file = '%s/mesowest-error-201704-201705.nc' % root_data_dir
-predictor_file = '%s/predictors_201704-201705_28N43N100W80W_x4_no_c.nc' % root_data_dir
+meso_file = '%s/mesowest-201504-201603.pkl' % root_data_dir
+copy_stations_file = None  # '%s/mesowest-201504-201603.nc' % root_data_dir
+ae_meso_file = '%s/mesowest-error-201504-201603.nc' % root_data_dir
+predictor_file = '%s/predictors_201504-201603_28N40N100W78W_x4_no_c.nc' % root_data_dir
 
 
 # Generate monthly batches of dates
@@ -164,7 +164,6 @@ else:
     meso.load_metadata(bbox=bbox, network='1')
     meso.load(meso_start_date, meso_end_date, chunks='day', file=meso_file, verbose=True,
               bbox=bbox, network='1', vars=verification_variables, units='temp|K', hfmetars='0')
-
     if copy_stations_file is not None:
         meso_copy = MesoWest(token='')
         meso_copy.load('', '', file=copy_stations_file)
@@ -174,6 +173,8 @@ else:
             if station not in keep_stations:
                 del meso.Data[station]
         # TODO: something for the stations that are missing in this new meso file
+    else:
+        meso.trim_stations(0.01)
     # Reload ensemble with all data
     ensemble.set_init_dates(dates)
     ensemble.open(coords=[], autoclose=True,
@@ -186,13 +187,24 @@ if copy_stations_file:
     mt = 1.0
 else:
     mt = 0.01
-raw_error_predictors = preprocessing.predictors_from_ae_meso(error_ds, ensemble, (lon_0, lon_1), (lat_0, lat_1),
-                                                             forecast_hours=tuple(forecast_hours),
-                                                             variables=verification_variables,
-                                                             convolution=convolution,
-                                                             convolution_step=convolution_step,
-                                                             convolution_agg=convolution_agg,
-                                                             missing_tolerance=mt, verbose=True)
+if convolved:
+    raw_error_predictors = preprocessing.predictors_from_ae_meso(error_ds, ensemble, (lon_0, lon_1), (lat_0, lat_1),
+                                                                 forecast_hours=tuple(forecast_hours),
+                                                                 variables=verification_variables,
+                                                                 convolution=convolution,
+                                                                 convolution_step=convolution_step,
+                                                                 convolution_agg=convolution_agg,
+                                                                 missing_tolerance=mt, verbose=True)
+else:
+    raw_error_predictors, stations = preprocessing.predictors_from_ae_meso(error_ds, ensemble, (lon_0, lon_1),
+                                                                           (lat_0, lat_1),
+                                                                           forecast_hours=tuple(forecast_hours),
+                                                                           variables=verification_variables,
+                                                                           convolution=convolution,
+                                                                           convolution_step=convolution_step,
+                                                                           convolution_agg=convolution_agg,
+                                                                           missing_tolerance=mt, verbose=True,
+                                                                           return_stations=True)
 
 # Targets are the final time step in the error predictors. Faster to do it this way than with separate calls to the
 # predictors_from_ae_meso method for predictor and target data.
@@ -231,5 +243,20 @@ nc_var.setncatts({
 })
 nc_var = None
 ncf.variables['AE_TAR'][:] = ae_targets
+
+# Add the station latitudes and longitudes
+if not convolved:
+    nc_var = ncf.createVariable('station_lat', np.float32, ('station',), fill_value=fill_value)
+    nc_var.setncatts({
+        'long_name': 'Latitude of individual stations',
+        'units': 'degrees_north'
+    })
+    nc_var[:] = np.array([error_ds[s].attrs['LATITUDE'] for s in stations])
+    nc_var = ncf.createVariable('station_lon', np.float32, ('station',), fill_value=fill_value)
+    nc_var.setncatts({
+        'long_name': 'Longitude of individual stations',
+        'units': 'degrees_east'
+    })
+    nc_var[:] = np.array([error_ds[s].attrs['LONGITUDE'] for s in stations])
 
 ncf.close()
