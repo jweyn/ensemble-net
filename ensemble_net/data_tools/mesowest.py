@@ -43,7 +43,7 @@ def _convert_variable_names(variables):
         try:
             new_var_list.append(parameter_dict[v])
         except KeyError:
-            raise KeyError("'%s' is not a recognized variable available in MesoWest data" % v)
+            raise ValueError("'%s' is not a recognized variable available in MesoWest data" % v)
     var_string = ','.join(new_var_list)
     return var_string
 

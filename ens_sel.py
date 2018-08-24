@@ -28,7 +28,7 @@ from shutil import copyfile
 root_data_dir = '%s/Data/ensemble-net' % os.environ['WORKDIR']
 predictor_file = '%s/predictors_201504-201603_28N40N100W78W_x4_no_c.nc' % root_data_dir
 model_file = '%s/selector_201504-201603_no_c_300days' % root_data_dir
-result_file = '%s/result_201704-201705_28N40N100W78W_x4_no_c.nc' % root_data_dir
+result_file = '%s/result_201504-201603_28N40N100W78W_x4_no_c.nc' % root_data_dir
 convolved = False
 
 # Copy file to scratch space
