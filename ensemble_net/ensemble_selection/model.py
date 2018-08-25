@@ -25,8 +25,9 @@ class EnsembleSelector(object):
     """
     Class containing an ensemble selection model and other processing tools for the input data.
     """
-    def __init__(self, scaler_type='MinMaxScaler', impute_missing=False):
+    def __init__(self, scaler_type='MinMaxScaler', impute_missing=False, scale_targets=True):
         self.scaler_type = scaler_type
+        self.scale_targets = scale_targets
         self.scaler = None
         self.scaler_y = None
         self.impute = impute_missing
@@ -78,26 +79,32 @@ class EnsembleSelector(object):
             self.is_parallel = True
         self.model.compile(**compile_kwargs)
 
+    @staticmethod
+    def _reshape(a, ret=False):
+        a_shape = a.shape
+        a = a.reshape((a_shape[0], -1))
+        if ret:
+            return a, a_shape
+        return a
+
     def scaler_fit(self, X, y, **kwargs):
         scaler_class = get_from_class('sklearn.preprocessing', self.scaler_type)
         self.scaler = scaler_class(**kwargs)
         self.scaler_y = scaler_class(**kwargs)
-        X_shape = X.shape
-        X = X.reshape((X_shape[0], -1))
-        self.scaler.fit(X)
-        y_shape = y.shape
-        y = y.reshape((y_shape[0], -1))
-        self.scaler_y.fit(y)
+        self.scaler.fit(self._reshape(X))
+        if self.scale_targets:
+            self.scaler_y.fit(self._reshape(y))
 
     def scaler_transform(self, X, y=None):
-        X_shape = X.shape
-        X = X.reshape((X_shape[0], -1))
+        X, X_shape = self._reshape(X, ret=True)
         X_transform = self.scaler.transform(X)
         if y is not None:
-            y_shape = y.shape
-            y = y.reshape((y_shape[0], -1))
-            y_transform = self.scaler_y.transform(y)
-            return X_transform.reshape(X_shape), y_transform.reshape(y_shape)
+            if self.scale_targets:
+                y, y_shape = self._reshape(y, ret=True)
+                y_transform = self.scaler_y.transform(y)
+                return X_transform.reshape(X_shape), y_transform.reshape(y_shape)
+            else:
+                return X_transform.reshape(X_shape), y
         else:
             return X_transform.reshape(X_shape)
 
@@ -105,20 +112,14 @@ class EnsembleSelector(object):
         imputer_class = get_from_class('sklearn.preprocessing', 'Imputer')
         self.imputer = imputer_class(missing_values=np.nan, strategy="mean", axis=0, copy=False)
         self.imputer_y = imputer_class(missing_values=np.nan, strategy="mean", axis=0, copy=False)
-        X_shape = X.shape
-        X = X.reshape((X_shape[0], -1))
-        self.imputer.fit(X)
-        y_shape = y.shape
-        y = y.reshape((y_shape[0], -1))
-        self.imputer_y.fit(y)
+        self.imputer.fit(self._reshape(X))
+        self.imputer_y.fit(self._reshape(y))
 
     def imputer_transform(self, X, y=None):
-        X_shape = X.shape
-        X = X.reshape((X_shape[0], -1))
+        X, X_shape = self._reshape(X, ret=True)
         X_transform = self.imputer.transform(X)
         if y is not None:
-            y_shape = y.shape
-            y = y.reshape((y_shape[0], -1))
+            y, y_shape = self._reshape(y, ret=True)
             y_transform = self.imputer_y.transform(y)
             return X_transform.reshape(X_shape), y_transform.reshape(y_shape)
         else:
