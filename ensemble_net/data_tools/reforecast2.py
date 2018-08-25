@@ -87,6 +87,7 @@ class GR2Array(object):
         # Known universal dimension sizes for the dataset
         self._ny = 181
         self._nx = 360
+        self.inverse_lat = True
         # Data
         self.Dataset = None
         self.basemap = None
@@ -376,11 +377,11 @@ class GR2Array(object):
                     else:
                         grib_list = grib_index.select(forecastTime=forecast_hour, level=int(level))
                     if verbose and len(grib_list) > 1:
-                        print('* Warning: found multiple matches for fhour %s; using the first (%s)' %
-                              (forecast_hour, grib_list[0]))
+                        print('* Warning: found multiple matches for fhour %s; using the last (%s)' %
+                              (forecast_hour, grib_list[-1]))
                     elif verbose:
                         print('%s' % grib_list[0])
-                    data = np.array(grib_list[0].values, dtype=np.float32)
+                    data = np.array(grib_list[-1].values, dtype=np.float32)
                     data[data > 1.e30] = np.nan
                     nc_fid.variables[variable][0, member_index, fhour_index, ...] = data
                 except (ValueError, OSError):  # missing index gives an OS read error

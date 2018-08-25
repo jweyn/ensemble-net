@@ -11,16 +11,17 @@ from datetime import datetime, timedelta
 
 gr2 = GR2Array(root_directory='/home/disk/wave2/jweyn/Data/GEFSR2')
 
-start_init_date = datetime(2015, 2, 1)
-end_init_date = datetime(2015, 12, 31)
+start_init_date = datetime(2016, 1, 1)
+end_init_date = datetime(2016, 12, 31)
 init_dates = list(pd.date_range(start=start_init_date, end=end_init_date, freq='D').to_pydatetime())
-forecast_hours = list(range(0, 3, 49))
+forecast_hours = list(range(0, 49, 3))
 members = list(range(0, 11))
 variables = ('TMP2', 'SPH2', 'MSLP', 'UGRD', 'VGRD', 'CAPE', 'CIN', 'ACPC', 'Z500', 'Z850', 'T850', 'W850', 'PWAT')
 
 gr2.set_init_dates(init_dates)
 gr2.retrieve(init_dates, variables, members, verbose=True)
-gr2.write(variables, members=members, forecast_hours=forecast_hours, verbose=True)
+gr2.forecast_hour_coord = forecast_hours
+gr2.write(variables, members=members, forecast_hours='all', verbose=True)
 gr2.open(autoclose=True)
 
 plot_variable = 'TMP2'
