@@ -148,6 +148,11 @@ def predictors_from_ensemble(ensemble, xlim, ylim, variables=(), latlon=True, fo
         upper_right_index = ensemble.closest_lat_lon(ylim[1], xlim[1])
         y1, x1 = lower_left_index
         y2, x2 = upper_right_index
+        try:
+            if ensemble.inverse_lat:
+                y1, y2 = (y2, y1)
+        except AttributeError:
+            pass
     else:
         x1, x2 = xlim
         y1, y2 = ylim
@@ -306,6 +311,11 @@ def predictors_from_ae_meso(ae_ds, ensemble, xlim, ylim, variables=(), forecast_
     upper_right_index = ensemble.closest_lat_lon(ylim[1], xlim[1])
     y1, x1 = lower_left_index
     y2, x2 = upper_right_index
+    try:
+        if ensemble.inverse_lat:
+            y1, y2 = (y2, y1)
+    except AttributeError:
+        pass
 
     # Get the lat/lon arrays
     lat = ensemble.lat[y1:y2, x1:x2]

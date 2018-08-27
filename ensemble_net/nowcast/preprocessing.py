@@ -85,6 +85,11 @@ def train_data_from_ensemble(ncar, xlim, ylim, variables=(), latlon=False, lead_
         upper_right_index = ncar.closest_lat_lon(ylim[1], xlim[1])
         y1, x1 = lower_left_index
         y2, x2 = upper_right_index
+        try:
+            if ncar.inverse_lat:
+                y1, y2 = (y2, y1)
+        except AttributeError:
+            pass
     else:
         x1, x2 = xlim
         y1, y2 = ylim

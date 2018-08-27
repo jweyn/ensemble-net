@@ -564,24 +564,18 @@ class GR2Array(object):
         except TypeError:
             default = True
 
-        lat_0 = 32.0
-        lat_1 = 32.0
-        lat_2 = 46.0
-        lon_0 = 259.0
-
         if default:
             try:
                 lat = self.lat
                 lon = self.lon
-            except KeyError:
+            except (AttributeError, KeyError):
                 raise ValueError('I can generate a default Basemap with None parameters, but only if I have some '
                                  'data loaded first!')
-            llcrnrlon, llcrnrlat = lon[0, 0], lat[0, 0]
-            urcrnrlon, urcrnrlat = lon[-1, -1], lat[-1, -1]
+            llcrnrlon, llcrnrlat = lon[0, 0], lat[-1, -1]
+            urcrnrlon, urcrnrlat = lon[-1, -1], lat[0, 0]
 
-        basemap = Basemap(width=12000000, height=9000000, projection='lcc', llcrnrlat=llcrnrlat, urcrnrlat=urcrnrlat,
-                          llcrnrlon=llcrnrlon, urcrnrlon=urcrnrlon, lat_0=lat_0, lon_0=lon_0, lat_1=lat_1,
-                          lat_2=lat_2, resolution='l')
+        basemap = Basemap(projection='cyl', llcrnrlat=llcrnrlat, urcrnrlat=urcrnrlat,
+                          llcrnrlon=llcrnrlon, urcrnrlon=urcrnrlon, resolution='l')
 
         self.basemap = basemap
 

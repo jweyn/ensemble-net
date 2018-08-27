@@ -96,7 +96,7 @@ if plotting:
     y2, x2 = upper_right_index
     try:
         if ensemble.inverse_lat:
-            y2, y1 = (y1, y2)
+            y1, y2 = (y2, y1)
     except AttributeError:
         pass
     ensemble.generate_basemap(lat_0, lon_0, lat_1, lon_1)

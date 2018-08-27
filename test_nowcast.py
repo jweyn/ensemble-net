@@ -129,6 +129,11 @@ lower_left_index = ensemble.closest_lat_lon(ylim[0], xlim[0])
 upper_right_index = ensemble.closest_lat_lon(ylim[1], xlim[1])
 y1, x1 = lower_left_index
 y2, x2 = upper_right_index
+try:
+    if ensemble.inverse_lat:
+        y1, y2 = (y2, y1)
+except AttributeError:
+    pass
 lats = ensemble.lat[y1:y2, x1:x2]
 lons = ensemble.lon[y1:y2, x1:x2]
 lats_t = lats[7:-7, 7:-7]

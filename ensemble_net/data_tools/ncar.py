@@ -652,7 +652,7 @@ class NCARArray(object):
             try:
                 lat = self.lat
                 lon = self.lon
-            except KeyError:
+            except (AttributeError, KeyError):
                 raise ValueError('I can generate a default Basemap with None parameters, but only if I have some '
                                  'data loaded first!')
             llcrnrlon, llcrnrlat = lon[0, 0], lat[0, 0]
