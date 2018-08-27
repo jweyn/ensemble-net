@@ -25,12 +25,14 @@ class EnsembleSelector(object):
     """
     Class containing an ensemble selection model and other processing tools for the input data.
     """
-    def __init__(self, scaler_type='MinMaxScaler', impute_missing=False):
+    def __init__(self, scaler_type='MinMaxScaler', impute_missing=False, scale_targets=True):
         self.scaler_type = scaler_type
+        self.scale_targets = scale_targets
         self.scaler = None
+        self.scaler_y = None
         self.impute = impute_missing
         self.imputer = None
-        self.target_imputer = None
+        self.imputer_y = None
         self.model = None
         self.is_parallel = False
 
@@ -77,38 +79,48 @@ class EnsembleSelector(object):
             self.is_parallel = True
         self.model.compile(**compile_kwargs)
 
-    def scaler_fit(self, X, **kwargs):
+    @staticmethod
+    def _reshape(a, ret=False):
+        a_shape = a.shape
+        a = a.reshape((a_shape[0], -1))
+        if ret:
+            return a, a_shape
+        return a
+
+    def scaler_fit(self, X, y, **kwargs):
         scaler_class = get_from_class('sklearn.preprocessing', self.scaler_type)
         self.scaler = scaler_class(**kwargs)
-        X_shape = X.shape
-        X = X.reshape((X_shape[0], -1))
-        self.scaler.fit(X)
+        self.scaler_y = scaler_class(**kwargs)
+        self.scaler.fit(self._reshape(X))
+        if self.scale_targets:
+            self.scaler_y.fit(self._reshape(y))
 
-    def scaler_transform(self, X):
-        X_shape = X.shape
-        X = X.reshape((X_shape[0], -1))
+    def scaler_transform(self, X, y=None):
+        X, X_shape = self._reshape(X, ret=True)
         X_transform = self.scaler.transform(X)
-        return X_transform.reshape(X_shape)
+        if y is not None:
+            if self.scale_targets:
+                y, y_shape = self._reshape(y, ret=True)
+                y_transform = self.scaler_y.transform(y)
+                return X_transform.reshape(X_shape), y_transform.reshape(y_shape)
+            else:
+                return X_transform.reshape(X_shape), y
+        else:
+            return X_transform.reshape(X_shape)
 
     def imputer_fit(self, X, y):
         imputer_class = get_from_class('sklearn.preprocessing', 'Imputer')
         self.imputer = imputer_class(missing_values=np.nan, strategy="mean", axis=0, copy=False)
-        self.target_imputer = imputer_class(missing_values=np.nan, strategy="mean", axis=0, copy=False)
-        X_shape = X.shape
-        X = X.reshape((X_shape[0], -1))
-        self.imputer.fit(X)
-        y_shape = y.shape
-        y = y.reshape((y_shape[0], -1))
-        self.target_imputer.fit(y)
+        self.imputer_y = imputer_class(missing_values=np.nan, strategy="mean", axis=0, copy=False)
+        self.imputer.fit(self._reshape(X))
+        self.imputer_y.fit(self._reshape(y))
 
     def imputer_transform(self, X, y=None):
-        X_shape = X.shape
-        X = X.reshape((X_shape[0], -1))
+        X, X_shape = self._reshape(X, ret=True)
         X_transform = self.imputer.transform(X)
         if y is not None:
-            y_shape = y.shape
-            y = y.reshape((y_shape[0], -1))
-            y_transform = self.target_imputer.transform(y)
+            y, y_shape = self._reshape(y, ret=True)
+            y_transform = self.imputer_y.transform(y)
             return X_transform.reshape(X_shape), y_transform.reshape(y_shape)
         else:
             return X_transform.reshape(X_shape)
@@ -125,7 +137,7 @@ class EnsembleSelector(object):
         if self.impute:
             self.imputer_fit(predictors, targets)
             predictors, targets = self.imputer_transform(predictors, y=targets)
-        self.scaler_fit(predictors)
+        self.scaler_fit(predictors, targets)
 
     def fit(self, predictors, targets, initialize=True, **kwargs):
         """
@@ -142,18 +154,17 @@ class EnsembleSelector(object):
             self.init_fit(predictors, targets)
         if self.impute:
             predictors, targets = self.imputer_transform(predictors, y=targets)
-        predictors_scaled = self.scaler_transform(predictors)
+        predictors_scaled, targets_scaled = self.scaler_transform(predictors, targets)
         # Need to scale the validation data if it is given
         if 'validation_data' in kwargs:
             if self.impute:
-                predictors_test_scaled, targets_test_scaled = self.imputer_transform(
-                    kwargs['validation_data'][0], y=kwargs['validation_data'][1])
-                predictors_test_scaled = self.scaler_transform(predictors_test_scaled)
-                kwargs['validation_data'] = (predictors_test_scaled, targets_test_scaled)
+                predictors_test_scaled, targets_test_scaled = self.imputer_transform(*kwargs['validation_data'])
             else:
-                predictors_test_scaled = self.scaler_transform(kwargs['validation_data'][0])
-                kwargs['validation_data'] = (predictors_test_scaled, kwargs['validation_data'][1])
-        self.model.fit(predictors_scaled, targets, **kwargs)
+                predictors_test_scaled, targets_test_scaled = kwargs['validation_data']
+            predictors_test_scaled, targets_test_scaled = self.scaler_transform(predictors_test_scaled,
+                                                                                targets_test_scaled)
+            kwargs['validation_data'] = (predictors_test_scaled, targets_test_scaled)
+        self.model.fit(predictors_scaled, targets_scaled, **kwargs)
 
     def predict(self, predictors, **kwargs):
         """
@@ -167,20 +178,21 @@ class EnsembleSelector(object):
             predictors = self.imputer_transform(predictors)
         predictors_scaled = self.scaler_transform(predictors)
         predicted = self.model.predict(predictors_scaled, **kwargs)
-        return predicted
+        return self.scaler_y.inverse_transform(predicted)
 
     def evaluate(self, predictors, targets, **kwargs):
         """
         Run the Keras model's 'evaluate' method, with input feature scaling.
 
         :param predictors: ndarray: predictor data
+        :param targets: ndarray: target data
         :param kwargs: passed to Keras 'evaluate' method
         :return:
         """
         if self.impute:
-            predictors = self.imputer_transform(predictors)
-        predictors_scaled = self.scaler_transform(predictors)
-        score = self.model.evaluate(predictors_scaled, targets, **kwargs)
+            predictors, targets = self.imputer_transform(predictors, targets)
+        predictors_scaled, targets_scaled = self.scaler_transform(predictors, targets)
+        score = self.model.evaluate(predictors_scaled, targets_scaled, **kwargs)
         return score
 
     def select(self, predictors, ensemble_shape, axis=0, agg=np.mean, **kwargs):
