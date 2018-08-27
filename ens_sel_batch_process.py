@@ -10,7 +10,7 @@ Processes training data for an ensemble_selection model in 1-month batches, writ
 algorithm.
 """
 
-from ensemble_net.data_tools import NCARArray, MesoWest
+from ensemble_net.data_tools import NCARArray, GR2Array, MesoWest
 from ensemble_net.util import date_to_meso_date
 from ensemble_net.verify import ae_meso
 from ensemble_net.ensemble_selection import preprocessing
@@ -25,22 +25,22 @@ warnings.filterwarnings("ignore")
 
 
 # Ensemble data parameters
-start_init_date = datetime(2015, 4, 21)
-end_init_date = datetime(2016, 3, 31)
+start_init_date = datetime(2015, 1, 1)
+end_init_date = datetime(2015, 12, 31)
 forecast_hours = list(range(0, 25, 12))
-members = list(range(1, 11))
+members = list(range(0, 11))
 retrieve_forecast_variables = ('REFC', 'REFD_MAX', 'TMP2', 'DPT2', 'MSLP', 'UGRD', 'VGRD', 'CAPE', 'CIN', 'LFTX',
                                'UBSHR6', 'VBSHR6', 'HLCY1')
-forecast_variables = ('TMP2', 'DPT2', 'MSLP', 'CAPE')
-verification_variables = ('TMP2', 'DPT2', 'MSLP')
+forecast_variables = ('TMP2', 'SPH2', 'MSLP', 'CAPE', 'Z500', 'T850', 'W850', 'PWAT')
+verification_variables = ('TMP2', 'MSLP')
 
 # Subset with grid parameters
 lat_0 = 28.
 lat_1 = 40.
 lon_0 = -100.
 lon_1 = -78.
-grid_factor = 4
-num_members = 10
+grid_factor = 1
+num_members = 11
 
 # When formatting data for ingestion into the learning algorithm, we can use convolutions over the spatial data to
 # increase the number of training samples at the expense of training features. Set 'convolution' to None to disable
@@ -53,13 +53,13 @@ convolution_agg = 'rmse'
 # by this script or a different one.
 retrieve_forecast_data = False
 # If enabled, these options load data from files instead of performing calculations again.
-load_existing_data = True
+load_existing_data = False
 # File paths, beginning with the directory in which to place the data
 root_data_dir = '/home/disk/wave/jweyn/Data/ensemble-net/'
-meso_file = '%s/mesowest-201504-201603.pkl' % root_data_dir
+meso_file = '%s/mesowest_201501-201512.pkl' % root_data_dir
 copy_stations_file = None  # '%s/mesowest-201504-201603.nc' % root_data_dir
-ae_meso_file = '%s/mesowest-error-201504-201603.nc' % root_data_dir
-predictor_file = '%s/predictors_201504-201603_28N40N100W78W_x4_no_c.nc' % root_data_dir
+ae_meso_file = '%s/gr2_meso_error_201501-201512.nc' % root_data_dir
+predictor_file = '%s/predictors_gr2_201501-201512_28N40N100W78W_no_c.nc' % root_data_dir
 
 
 # Generate monthly batches of dates
@@ -88,15 +88,15 @@ get_dims = True
 
 # Load NCAR Ensemble data
 print('Loading NCAR ensemble data...')
-ensemble = NCARArray(root_directory='/home/disk/wave/jweyn/Data/NCAR_Ensemble',)
+ensemble = GR2Array(root_directory='/home/disk/wave2/jweyn/Data/GEFSR2')
 ensemble.set_init_dates(dates)
 ensemble.forecast_hour_coord = forecast_hours  # Not good practice, but an override removes unnecessary time indices
 # Retrieve forecast data by monthly batches, deleting the raw files along the way
 if retrieve_forecast_data:
     for batch in month_list:
-        ensemble.retrieve(batch, forecast_hours, members, get_ncar_netcdf=False, verbose=True)
+        ensemble.retrieve(batch, forecast_hours, members, verbose=True)
         ensemble.write(retrieve_forecast_variables, init_dates=batch, forecast_hours=forecast_hours, members=members,
-                       omit_existing=True, use_ncar_netcdf=False, verbose=True, delete_raw_files=True)
+                       omit_existing=True, verbose=True, delete_raw_files=True)
 
 
 # Generate the predictors from the ensemble, iterating over init_dates
@@ -108,7 +108,7 @@ for date in dates:
     print('Ensemble predictors for %s' % date)
     ensemble.set_init_dates([date])
     ensemble.open(coords=[], autoclose=True,
-                  chunks={'member': 10, 'time': 12, 'south_north': 100, 'west_east': 100})
+                  chunks={'member': 10, 'time': 12, 'lat': 100, 'lon': 100})
     raw_forecast_predictors = preprocessing.predictors_from_ensemble(ensemble, (lon_0, lon_1), (lat_0, lat_1),
                                                                      forecast_hours=tuple(forecast_hours),
                                                                      variables=forecast_variables,
@@ -177,8 +177,8 @@ else:
         meso.trim_stations(0.01)
     # Reload ensemble with all data
     ensemble.set_init_dates(dates)
-    ensemble.open(coords=[], autoclose=True,
-                  chunks={'member': 10, 'time': 12, 'south_north': 100, 'west_east': 100})
+    ensemble.open(decode_times=False, autoclose=True,
+                  chunks={'member': 10, 'time': 12, 'lat': 100, 'lon': 100})
     error_ds = ae_meso(ensemble, meso)
     error_ds.to_netcdf(ae_meso_file)
 

@@ -56,6 +56,7 @@ def ae_meso(ensemble, meso, variables='all', stations='all', verbose=True):
 
     num_stations = len(stations)
     station_count = 0
+    new_ds = ensemble.Dataset.sel(fhour=forecast_hours)
     for stid, df in meso.Data.items():
         if stid not in stations:
             continue
@@ -74,7 +75,7 @@ def ae_meso(ensemble, meso, variables='all', stations='all', verbose=True):
             if var not in df.columns:  # Missing variable
                 continue
             # Transpose the ensemble data to members, time, fhour for broadcasting
-            ens_data = ensemble.Dataset[var][:, :, :, ens_y_index, ens_x_index].values.transpose((1, 0, 2))
+            ens_data = new_ds[var][:, :, :, ens_y_index, ens_x_index].values.transpose((1, 0, 2))
             obs_data = np.full((len(init_dates), len(forecast_hours)), np.nan, dtype=np.float32)
             for d in range(len(init_dates)):
                 for f in range(len(forecast_hours)):

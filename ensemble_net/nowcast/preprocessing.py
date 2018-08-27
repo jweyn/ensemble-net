@@ -115,7 +115,10 @@ def train_data_from_ensemble(ncar, xlim, ylim, variables=(), latlon=False, lead_
             new_ds = new_ds.drop(key)
     if verbose:
         print('train_data_from_ensemble: reading all the data in the spatial subset')
-    new_ds = new_ds.isel(south_north=range(y1, y2), west_east=range(x1, x2))
+    try:
+        new_ds = new_ds.isel(south_north=range(y1, y2), west_east=range(x1, x2))
+    except ValueError:
+        new_ds = new_ds.isel(lat=range(y1, y2), lon=range(x1, x2))
     new_ds.load()
     for v in range(num_var):
         variable = variables[v]

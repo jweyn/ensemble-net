@@ -194,7 +194,10 @@ def predictors_from_ensemble(ensemble, xlim, ylim, variables=(), latlon=True, fo
         if verbose:
             print('predictors_from_ensemble: reading all the data for init %s' % init_date)
         new_ds = None
-        new_ds = reduced_ds.isel(time=init, south_north=range(y1, y2), west_east=range(x1, x2))
+        try:
+            new_ds = reduced_ds.isel(time=init, south_north=range(y1, y2), west_east=range(x1, x2))
+        except ValueError:
+            new_ds = reduced_ds.isel(time=init, lat=range(y1, y2), lon=range(x1, x2))
         new_ds.load()
         part_index_array = grand_index_array[grand_index_array[:, 0] == init]
         for sample in range(len(part_index_array)):
