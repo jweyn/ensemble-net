@@ -29,8 +29,8 @@ from shutil import copyfile
 # Paths to important files
 root_data_dir = '%s/Data/ensemble-net' % os.environ['WORKDIR']
 predictor_file = '%s/predictors_201504-201603_28N40N100W78W_x4_no_c.nc' % root_data_dir
-model_file = '%s/selector_201504-201603_no_c_300days' % root_data_dir
-result_file = '%s/result_201504-201603_28N40N100W78W_x4_no_c.nc' % root_data_dir
+model_file = '%s/selector_201504-201603_no_c_TMP2' % root_data_dir
+result_file = '%s/result_201504-201603_28N40N100W78W_x4_no_c_TMP2.nc' % root_data_dir
 convolved = False
 
 # Copy file to scratch space
@@ -276,7 +276,7 @@ last_time_ranks = []
 for day in val_set:
     day_as_list = [day]
     print('\nDay %d:' % day)
-    new_ds = predictor_ds.isel(init_date=day_as_list)
+    new_ds = predictor_ds.isel(init_date=day_as_list, **ens_sel)
     select_predictors, select_shape = preprocessing.format_select_predictors(new_ds.ENS_PRED.values,
                                                                              new_ds.AE_PRED.values,
                                                                              None, convolved=convolved, num_members=10)
