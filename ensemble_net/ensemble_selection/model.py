@@ -178,7 +178,10 @@ class EnsembleSelector(object):
             predictors = self.imputer_transform(predictors)
         predictors_scaled = self.scaler_transform(predictors)
         predicted = self.model.predict(predictors_scaled, **kwargs)
-        return self.scaler_y.inverse_transform(predicted)
+        if self.scale_targets:
+            return self.scaler_y.inverse_transform(predicted)
+        else:
+            return predicted
 
     def evaluate(self, predictors, targets, **kwargs):
         """
