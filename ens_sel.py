@@ -19,7 +19,7 @@ import time
 import xarray as xr
 import os
 import random
-from keras.optimizers import SGD, Adam
+from keras.optimizers import SGD, Nadam
 from keras.callbacks import ReduceLROnPlateau
 from shutil import copyfile
 
@@ -36,6 +36,9 @@ convolved = False
 # Copy file to scratch space
 copy_file_to_scratch = False
 
+# Optionally predict for only a subset of variables. Must use integer index as a list, or 'all'
+variables = [0]
+
 # Neural network configuration and options
 chunk_size = 10
 batch_size = 50
@@ -43,6 +46,7 @@ scaler_fit_size = 100
 epochs_per_chunk = 3
 loops = 1
 impute_missing = True
+scale_targets = False
 val = 'random'
 val_size = 46
 # Use multiple GPUs
@@ -51,7 +55,29 @@ n_gpu = 1
 
 #%% End user configuration
 
-def process_chunk(ds, ):
+# Parameter checks
+if variables == 'all' or variables is None:
+    ens_sel = {}
+else:
+    if type(variables) is not list and type(variables) is not tuple:
+        try:
+            variables = int(variables)
+            variables = [variables]
+        except (TypeError, ValueError):
+            raise TypeError("'variables' must be a list of integers or 'all'")
+    else:
+        try:
+            variables = [int(v) for v in variables]
+        except (TypeError, ValueError):
+            raise TypeError("indices in 'variables' must be integer types")
+    ens_sel = {'obs_var': variables}
+
+
+#%% Process
+
+def process_chunk(ds, **sel):
+    if len(sel) > 0:
+        ds = ds.sel(**sel)
     forecast_predictors, fpi = preprocessing.convert_ensemble_predictors_to_samples(ds['ENS_PRED'].values,
                                                                                     convolved=convolved)
     ae_predictors, epi = preprocessing.convert_ae_meso_predictors_to_samples(ds['AE_PRED'].values, convolved=convolved)
@@ -68,9 +94,9 @@ def process_chunk(ds, ):
     return p, t
 
 
-def subprocess_chunk(pid, ds, shared):
+def subprocess_chunk(pid, ds, shared, **sel):
     print('Process %d (%s): loading new predictors...' % (pid, os.getpid()))
-    p, t = process_chunk(ds)
+    p, t = process_chunk(ds, **sel)
     shared['p'] = p
     shared['t'] = t
     return shared
@@ -95,7 +121,10 @@ predictor_ds = xr.open_dataset(predictor_file, mask_and_scale=True)
 num_dates = predictor_ds.ENS_PRED.shape[0]
 num_members = predictor_ds.AE_TAR.shape[2]
 num_stations = predictor_ds.AE_TAR.shape[-1]
-num_variables = predictor_ds.AE_TAR.shape[1]
+if ens_sel == {}:
+    num_variables = predictor_ds.AE_TAR.shape[1]
+else:
+    num_variables = len(variables)
 
 
 # Get the indices for a validation set
@@ -126,14 +155,14 @@ while index < len(train_set):
 
 # Load the validation set
 new_ds = predictor_ds.isel(init_date=val_set)
-p_val, t_val = process_chunk(new_ds)
+p_val, t_val = process_chunk(new_ds, **ens_sel)
 input_shape = p_val.shape[1:]
 num_outputs = t_val.shape[1]
 
 
 # Build an ensemble selection model
 print('Building an EnsembleSelector model...')
-selector = model.EnsembleSelector(impute_missing=impute_missing)
+selector = model.EnsembleSelector(impute_missing=impute_missing, scale_targets=scale_targets)
 layers = (
     # ('Conv2D', (64,), {
     #     'kernel_size': (3, 3),
@@ -154,7 +183,7 @@ layers = (
     })
 )
 sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
-adam = Adam(lr=0.01, decay=1e-6, )
+adam = Nadam()
 # reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=10, min_lr=0.001)
 selector.build_model(layers=layers, gpus=n_gpu, loss='mse', optimizer=adam, metrics=['mae'])
 
@@ -163,7 +192,7 @@ selector.build_model(layers=layers, gpus=n_gpu, loss='mse', optimizer=adam, metr
 print('Fitting the EnsembleSelector Imputer and Scaler...')
 fit_set = train_set[:scaler_fit_size]
 new_ds = predictor_ds.isel(init_date=fit_set)
-predictors, targets = process_chunk(new_ds)
+predictors, targets = process_chunk(new_ds, **ens_sel)
 selector.init_fit(predictors, targets)
 
 
@@ -184,14 +213,14 @@ for loop in range(loops):
         # spawn a background process to load the next chunk while training on the current one.
         if first_chunk:
             new_ds = predictor_ds.isel(init_date=chunks[chunk])
-            predictors, targets = process_chunk(new_ds)
+            predictors, targets = process_chunk(new_ds, **ens_sel)
             first_chunk = False
         else:
             predictors, targets = (shared_chunk['p'].copy(), shared_chunk['t'].copy())
         # Process the next chunk
         next_chunk = (chunk + 1 if chunk < len(chunks) - 1 else 0)
         new_ds = predictor_ds.isel(init_date=chunks[next_chunk])
-        process = multiprocessing.Process(target=subprocess_chunk, args=(1, new_ds, shared_chunk))
+        process = multiprocessing.Process(target=subprocess_chunk, args=(1, new_ds, shared_chunk), kwargs=ens_sel)
         process.start()
         # Fit the Selector
         print('    Training...')
@@ -229,7 +258,7 @@ result = xr.Dataset(
     coords={
         'time': predictor_ds['init_date'].isel(init_date=val_set),
         'member': predictor_ds.member,
-        'variable': predictor_ds.obs_var,
+        'variable': predictor_ds.obs_var.isel(**ens_sel),
         'station': range(num_stations)
     }
 )
