@@ -19,8 +19,6 @@ import time
 import xarray as xr
 import os
 import random
-from keras.optimizers import SGD, Nadam
-from keras.callbacks import ReduceLROnPlateau
 from shutil import copyfile
 
 
@@ -29,15 +27,15 @@ from shutil import copyfile
 # Paths to important files
 root_data_dir = '%s/Data/ensemble-net' % os.environ['WORKDIR']
 predictor_file = '%s/predictors_201504-201603_28N40N100W78W_x4_no_c.nc' % root_data_dir
-model_file = '%s/selector_201504-201603_no_c_TMP2' % root_data_dir
-result_file = '%s/result_201504-201603_28N40N100W78W_x4_no_c_TMP2.nc' % root_data_dir
+model_file = '%s/selector_201504-201603_no_c_MSLP' % root_data_dir
+result_file = '%s/result_201504-201603_28N40N100W78W_x4_no_c_MSLP.nc' % root_data_dir
 convolved = False
 
 # Copy file to scratch space
 copy_file_to_scratch = True
 
 # Optionally predict for only a subset of variables. Must use integer index as a list, or 'all'
-variables = [0]
+variables = [2]
 
 # Neural network configuration and options
 chunk_size = 10
@@ -182,10 +180,8 @@ layers = (
         'activation': 'linear'
     })
 )
-sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
-adam = Nadam()
 # reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=10, min_lr=0.001)
-selector.build_model(layers=layers, gpus=n_gpu, loss='mse', optimizer=adam, metrics=['mae'])
+selector.build_model(layers=layers, gpus=n_gpu, loss='mse', optimizer='adam', metrics=['mae'])
 
 
 # Initialize the model's Imputer and Scaler with a larger set of data
