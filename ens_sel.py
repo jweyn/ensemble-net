@@ -19,6 +19,8 @@ import time
 import xarray as xr
 import os
 import random
+from keras.optimizers import SGD, Adam
+from keras.callbacks import ReduceLROnPlateau
 from shutil import copyfile
 
 
@@ -32,14 +34,14 @@ result_file = '%s/result_201504-201603_28N40N100W78W_x4_no_c.nc' % root_data_dir
 convolved = False
 
 # Copy file to scratch space
-copy_file_to_scratch = True
+copy_file_to_scratch = False
 
 # Neural network configuration and options
 chunk_size = 10
 batch_size = 50
 scaler_fit_size = 100
-epochs_per_chunk = 10
-loops = 5
+epochs_per_chunk = 3
+loops = 1
 impute_missing = True
 val = 'random'
 val_size = 46
@@ -151,7 +153,10 @@ layers = (
         'activation': 'linear'
     })
 )
-selector.build_model(layers=layers, gpus=n_gpu, loss='mse', optimizer='adam', metrics=['mae'])
+sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
+adam = Adam(lr=0.01, decay=1e-6, )
+# reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=10, min_lr=0.001)
+selector.build_model(layers=layers, gpus=n_gpu, loss='mse', optimizer=adam, metrics=['mae'])
 
 
 # Initialize the model's Imputer and Scaler with a larger set of data
@@ -169,6 +174,7 @@ start_time = time.time()
 first_chunk = True
 manager = multiprocessing.Manager()
 shared_chunk = manager.dict()
+history = []
 for loop in range(loops):
     print('  Loop %d of %d' % (loop+1, loops))
     for chunk in range(len(chunks)):
@@ -189,8 +195,9 @@ for loop in range(loops):
         process.start()
         # Fit the Selector
         print('    Training...')
-        selector.fit(predictors, targets, batch_size=batch_size, epochs=epochs_per_chunk, initialize=False, verbose=1,
-                     validation_data=(p_val, t_val))
+        hist = selector.fit(predictors, targets, batch_size=batch_size, epochs=epochs_per_chunk, initialize=False,
+                            verbose=1, validation_data=(p_val, t_val))
+        history.append(hist)
         # Wait for the background process to finish
         process.join()
 
