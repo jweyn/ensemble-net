@@ -177,6 +177,20 @@ else:
     verification_dates = nc.num2date(result.time, 'hours since 1970-01-01 00:00:00')
 
 
+#%% Write CSV
+
+all_scores = np.full((result.dims['time'], 5), np.nan, dtype=object)
+for d in range(result.dims['time']):
+    day = verification_dates[d]
+    all_scores[d, 0] = '%s' % day
+    all_scores[d, 1] = np.mean((result.verif_scores[d, :].values - result.selector_scores[d, :].values) ** 2.)
+    all_scores[d, 2] = np.mean((result.verif_scores[d, :].values - result.last_time_scores[d, :].values) ** 2.)
+    all_scores[d, 3] = verify.rank_score(result.selector_ranks.values[d, :], result.verif_ranks.values[d, :])
+    all_scores[d, 4] = verify.rank_score(result.last_time_ranks.values[d, :], result.verif_ranks.values[d, :])
+np.savetxt('%s.csv' % '.'.join(result_file.split('.')[:-1]), all_scores, fmt='%s', delimiter=',',
+           header='day,selector score,12-hour score,selector rank,12-hour rank')
+
+
 #%% Do some verification plotting
 
 if plotting:

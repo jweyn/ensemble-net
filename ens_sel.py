@@ -37,7 +37,10 @@ convolved = False
 copy_file_to_scratch = False
 
 # Optionally predict for only a subset of variables. Must use integer index as a list, or 'all'
-variables = [0]
+variables = 'all'
+
+# Predict with model spatial fields only, and no observational errors as inputs
+model_fields_only = False
 
 # Neural network configuration and options
 chunk_size = 10
@@ -80,10 +83,14 @@ def process_chunk(ds, **sel):
         ds = ds.sel(**sel)
     forecast_predictors, fpi = preprocessing.convert_ensemble_predictors_to_samples(ds['ENS_PRED'].values,
                                                                                     convolved=convolved)
-    ae_predictors, epi = preprocessing.convert_ae_meso_predictors_to_samples(ds['AE_PRED'].values, convolved=convolved)
     ae_targets, eti = preprocessing.convert_ae_meso_predictors_to_samples(np.expand_dims(ds['AE_TAR'].values, 3),
                                                                           convolved=convolved)
-    combined_predictors = preprocessing.combine_predictors(forecast_predictors, ae_predictors)
+    if model_fields_only:
+        combined_predictors = forecast_predictors
+    else:
+        ae_predictors, epi = preprocessing.convert_ae_meso_predictors_to_samples(ds['AE_PRED'].values,
+                                                                                 convolved=convolved)
+        combined_predictors = preprocessing.combine_predictors(forecast_predictors, ae_predictors)
 
     # Remove samples with NaN
     if impute_missing:
@@ -182,10 +189,8 @@ layers = (
         'activation': 'linear'
     })
 )
-sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
-adam = Nadam()
 # reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=10, min_lr=0.001)
-selector.build_model(layers=layers, gpus=n_gpu, loss='mse', optimizer=adam, metrics=['mae'])
+selector.build_model(layers=layers, gpus=n_gpu, loss='mse', optimizer='adam', metrics=['mae'])
 
 
 # Initialize the model's Imputer and Scaler with a larger set of data
