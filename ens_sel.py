@@ -34,7 +34,7 @@ result_file = '%s/result_201504-201603_28N40N100W78W_x4_no_c.nc' % root_data_dir
 convolved = False
 
 # Copy file to scratch space
-copy_file_to_scratch = False
+copy_file_to_scratch = True
 
 # Optionally predict for only a subset of variables. Must use integer index as a list, or 'all'
 variables = 'all'
@@ -46,8 +46,8 @@ model_fields_only = False
 chunk_size = 10
 batch_size = 50
 scaler_fit_size = 100
-epochs_per_chunk = 3
-loops = 1
+epochs_per_chunk = 10
+loops = 3
 impute_missing = True
 scale_targets = False
 val = 'random'
@@ -281,7 +281,7 @@ last_time_ranks = []
 for day in val_set:
     day_as_list = [day]
     print('\nDay %d:' % day)
-    new_ds = predictor_ds.isel(init_date=day_as_list)
+    new_ds = predictor_ds.isel(init_date=day_as_list, **ens_sel)
     select_predictors, select_shape = preprocessing.format_select_predictors(new_ds.ENS_PRED.values,
                                                                              new_ds.AE_PRED.values,
                                                                              None, convolved=convolved, num_members=10)
