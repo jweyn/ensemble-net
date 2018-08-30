@@ -53,7 +53,7 @@ convolution_agg = 'rmse'
 # by this script or a different one.
 retrieve_forecast_data = False
 # If enabled, these options load data from files instead of performing calculations again.
-load_existing_data = False
+load_existing_data = True
 # File paths, beginning with the directory in which to place the data
 root_data_dir = '/home/disk/wave/jweyn/Data/ensemble-net/'
 meso_file = '%s/mesowest_201501-201512.pkl' % root_data_dir

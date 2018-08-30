@@ -307,7 +307,7 @@ if plotting:
         x, y = ensemble.basemap(predictor_ds['station_lon'].values, predictor_ds['station_lat'].values)
         s = plt.scatter(x, y, c=result['prediction'][p, plot_member, :, plot_error_variable]*e_scale, **error_kwargs)
         plt.colorbar(s)
-        plt.title(title % ('predicted', verification_dates[p]))
+        plt.title(title % ('predicted', datetime.strftime(verification_dates[p], '%d %b %Y')))
         plt.savefig(figure_files.format(p, 'predicted'), bbox_inches='tight')
         plt.show()
 
@@ -320,6 +320,6 @@ if plotting:
         x, y = ensemble.basemap(predictor_ds['station_lon'].values, predictor_ds['station_lat'].values)
         s = plt.scatter(x, y, c=result['target'][p, plot_member, :, plot_error_variable]*e_scale, **error_kwargs)
         plt.colorbar(s)
-        plt.title(title % ('target', verification_dates[p]))
+        plt.title(title % ('target', datetime.strftime(verification_dates[p], '%d %b %Y')))
         plt.savefig(figure_files.format(p, 'target'), bbox_inches='tight')
         plt.show()
