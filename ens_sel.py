@@ -19,8 +19,6 @@ import time
 import xarray as xr
 import os
 import random
-from keras.optimizers import SGD, Nadam
-from keras.callbacks import ReduceLROnPlateau
 from shutil import copyfile
 
 
@@ -55,6 +53,9 @@ val_size = 46
 # Use multiple GPUs
 n_gpu = 1
 
+# Seed the random validation set generator
+random.seed(0)
+
 
 #%% End user configuration
 
@@ -86,7 +87,7 @@ def process_chunk(ds, **sel):
     ae_targets, eti = preprocessing.convert_ae_meso_predictors_to_samples(np.expand_dims(ds['AE_TAR'].values, 3),
                                                                           convolved=convolved)
     if model_fields_only:
-        combined_predictors = forecast_predictors
+        combined_predictors = preprocessing.combine_predictors(forecast_predictors)
     else:
         ae_predictors, epi = preprocessing.convert_ae_meso_predictors_to_samples(ds['AE_PRED'].values,
                                                                                  convolved=convolved)
@@ -189,7 +190,6 @@ layers = (
         'activation': 'linear'
     })
 )
-# reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=10, min_lr=0.001)
 selector.build_model(layers=layers, gpus=n_gpu, loss='mse', optimizer='adam', metrics=['mae'])
 
 
@@ -282,9 +282,11 @@ for day in val_set:
     day_as_list = [day]
     print('\nDay %d:' % day)
     new_ds = predictor_ds.isel(init_date=day_as_list, **ens_sel)
+    # TODO: fix shape error when model_fields_only == True
     select_predictors, select_shape = preprocessing.format_select_predictors(new_ds.ENS_PRED.values,
                                                                              new_ds.AE_PRED.values,
-                                                                             None, convolved=convolved, num_members=10)
+                                                                             None, convolved=convolved,
+                                                                             num_members=num_members)
     select_verif = verify.select_verification(new_ds.AE_TAR.values, select_shape,
                                               convolved=convolved, agg=verify.stdmean)
     select_verif_12 = verify.select_verification(new_ds.AE_PRED[:, :, :, [-1]].values, select_shape,

@@ -198,7 +198,7 @@ class EnsembleSelector(object):
         score = self.model.evaluate(predictors_scaled, targets_scaled, **kwargs)
         return score
 
-    def select(self, predictors, ensemble_shape, axis=0, agg=np.mean, **kwargs):
+    def select(self, predictors, ensemble_shape, axis=0, abs=True, agg=np.mean, **kwargs):
         """
         Make a prediction from the predictors for an ensemble, and determine which ensemble member yields the least
         error.
@@ -210,6 +210,7 @@ class EnsembleSelector(object):
         :param ensemble_shape: tuple: ensemble dimensions (first m dimensions of predictors). Must contain an ensemble
             member dimension. Other dimensions are considered convolutions and simply averaged.
         :param axis: int: the axis among the first m dimensions (given by ensemble_shape) of the ensemble member dim
+        :param abs: bool: if True, take the absolute mean of the predicted errors
         :param agg: method: aggregation method for combining predicted errors into one score. Should accept an 'axis'
             kwarg. If None, then returns the raw selection scores.
         :param kwargs: passed to Keras 'predict' method
@@ -234,6 +235,10 @@ class EnsembleSelector(object):
                 dim_sub += 1
         # We should now have a ens_size-by-target_features array
         # Use the aggregation method
+        if abs:
+            predicted = np.abs(predicted)
+            if agg is None:
+                print("warning: returning absolute value of the prediction ('abs' is True)")
         if agg is None:
             return predicted
         agg_score = agg(predicted, axis=1)

@@ -12,7 +12,7 @@ import numpy as np
 from .preprocessing import convert_ae_meso_predictors_to_samples, extract_members_from_samples, combine_predictors
 
 
-def select_verification(verify, ensemble_shape, convolved=False, axis=0, agg=np.nanmean):
+def select_verification(verify, ensemble_shape, convolved=False, axis=0, abs=True, agg=np.nanmean):
     """
     Formats an array of errors into the same output as the EnsembleSelector's 'select' method. The errors should be
     an array generated in the same way as the array for targets when training the EnsembleSelector.
@@ -23,6 +23,7 @@ def select_verification(verify, ensemble_shape, convolved=False, axis=0, agg=np.
         member dimension. Other dimensions are considered convolutions and simply averaged.
     :param convolved: bool: whether the predictors were generated with convolution
     :param axis: int: the axis among the first m dimensions (given by ensemble_shape) of the ensemble member dim
+    :param abs: bool: if True, take the absolute mean of the predicted errors
     :param agg: method: aggregation method for combining predicted errors into one score. Should accept an 'axis'
         kwarg. If None, then returns the raw selection scores.
     :return:
@@ -52,6 +53,10 @@ def select_verification(verify, ensemble_shape, convolved=False, axis=0, agg=np.
             dim_sub += 1
     # We should now have a ens_size-by-target_features array
     # Use the aggregation method
+    if abs:
+        verified = np.abs(verified)
+        if agg is None:
+            print("warning: returning absolute value of the verification ('abs' is True)")
     if agg is None:
         return verified
     agg_score = agg(verified, axis=1)
@@ -92,6 +97,28 @@ def stdmean(a, axis=-1):
     a_std = np.nanstd(a, axis=axes, keepdims=True)
     a = (a - a_mean) / a_std
     return np.nanmean(a, axis=axis)
+
+
+def sqmean(a, axis=-1):
+    """
+    Return the mean of the square of an array.
+
+    :param a: ndarray
+    :param axis: int: axis along which to average
+    :return: ndarray: average of squares
+    """
+    return np.nanmean(a ** 2., axis=axis)
+
+
+def absmean(a, axis=-1):
+    """
+    Return the mean of the absolute value of an array.
+
+    :param a: ndarray
+    :param axis: int: axis along which to average
+    :return: ndarray: average of abs values
+    """
+    return np.nanmean(np.abs(a), axis=axis)
 
 
 def rank_score(p, t, metric='mae', power=2., axis=-1):
