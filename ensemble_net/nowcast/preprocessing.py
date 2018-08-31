@@ -21,7 +21,7 @@ def train_data_from_ensemble(ncar, xlim, ylim, variables=(), latlon=False, lead_
     if a forecast for one hour ahead is desired with two time steps for training each 1 hour apart, this will produce
     nowcasts for hour 0 with training on hours -2 and -1.
 
-    :param ncar: NCARArray object with .load() method called
+    :param ncar: NCARArray object with .open() method called
     :param variables: tuple of str: names of variables to retrieve from the data (see data docs)
     :param xlim: tuple: minimum and maximum x-direction grid points (or longitude if latlon == True)
     :param ylim: tuple: minimum and maximum y-direction grid points (or latitude if latlon == True)
@@ -61,8 +61,7 @@ def train_data_from_ensemble(ncar, xlim, ylim, variables=(), latlon=False, lead_
         for verif in range(first_verification, last_verification, time_interval):
             verif_datetime = init_date + timedelta(hours=verif)
             try:
-                # Complex indexing to deal with how xarray concatenates the time variable
-                verif_index = list(ncar.Dataset.variables['time'].values).index(np.datetime64(verif_datetime))
+                verif_index = list(ncar.forecast_hour_coord).index(verif)
             except (KeyError, IndexError):
                 print('train_data_from_ensemble warning: time index (%s) not found in data' % verif_datetime)
                 continue
@@ -71,7 +70,7 @@ def train_data_from_ensemble(ncar, xlim, ylim, variables=(), latlon=False, lead_
             try:
                 for train in range(lead_time, first_verification+1, time_interval):
                     train_datetime = verif_datetime - timedelta(hours=train)
-                    train_index = list(ncar.Dataset.variables['time'].values).index(np.datetime64(train_datetime))
+                    train_index = list(ncar.forecast_hour_coord).index(train)
                     sample_train_index_list.append(train_index)
                     sample_train_time_list.append(train_datetime)
             except (KeyError, IndexError):
@@ -86,6 +85,11 @@ def train_data_from_ensemble(ncar, xlim, ylim, variables=(), latlon=False, lead_
         upper_right_index = ncar.closest_lat_lon(ylim[1], xlim[1])
         y1, x1 = lower_left_index
         y2, x2 = upper_right_index
+        try:
+            if ncar.inverse_lat:
+                y1, y2 = (y2, y1)
+        except AttributeError:
+            pass
     else:
         x1, x2 = xlim
         y1, y2 = ylim
@@ -111,7 +115,10 @@ def train_data_from_ensemble(ncar, xlim, ylim, variables=(), latlon=False, lead_
             new_ds = new_ds.drop(key)
     if verbose:
         print('train_data_from_ensemble: reading all the data in the spatial subset')
-    new_ds = new_ds.isel(south_north=range(y1, y2), west_east=range(x1, x2))
+    try:
+        new_ds = new_ds.isel(south_north=range(y1, y2), west_east=range(x1, x2))
+    except ValueError:
+        new_ds = new_ds.isel(lat=range(y1, y2), lon=range(x1, x2))
     new_ds.load()
     for v in range(num_var):
         variable = variables[v]
@@ -122,10 +129,10 @@ def train_data_from_ensemble(ncar, xlim, ylim, variables=(), latlon=False, lead_
                                                                                             num_members, sample+1,
                                                                                             num_samples))
                 ind = grand_index_list[sample]
-                targets[sample, member, :, :, v] = np.squeeze(new_ds[variable].isel(init_date=ind[0], member=member,
-                                                                                    time=ind[1]).values)
-                predictors[sample, member, :, :, v, :] = ((new_ds[variable].isel(init_date=ind[0], member=member,
-                                                                                 time=ind[2]).values)
+                targets[sample, member, :, :, v] = np.squeeze(new_ds[variable].isel(time=ind[0], member=member,
+                                                                                    fhour=ind[1]).values)
+                predictors[sample, member, :, :, v, :] = ((new_ds[variable].isel(time=ind[0], member=member,
+                                                                                 fhour=ind[2]).values)
                                                            .reshape((train_time_steps, num_y, num_x))
                                                            .transpose((1, 2, 0)))
 

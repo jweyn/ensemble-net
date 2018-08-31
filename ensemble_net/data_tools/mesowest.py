@@ -15,8 +15,10 @@ import numpy as np
 import pandas as pd
 import pickle
 import os
+import random
 from ..util import meso_date_to_datetime, date_to_meso_date
 from datetime import timedelta
+from collections import OrderedDict
 
 
 def _convert_variable_names(variables):
@@ -41,7 +43,7 @@ def _convert_variable_names(variables):
         try:
             new_var_list.append(parameter_dict[v])
         except KeyError:
-            raise KeyError("'%s' is not a recognized variable available in MesoWest data" % v)
+            raise ValueError("'%s' is not a recognized variable available in MesoWest data" % v)
     var_string = ','.join(new_var_list)
     return var_string
 
@@ -98,7 +100,7 @@ def _reformat_data(data, start, end):
     :param data: dict: result from Meso call
     :return: dict of pandas DataFrame objects where each key in the dict is a station
     """
-    new_data = {}
+    new_data = OrderedDict()
     for station_data in data['STATION']:
         # Assign to DataFrame
         obs = pd.DataFrame(station_data['OBSERVATIONS'])
@@ -201,7 +203,7 @@ def _concatenate_data(data, added_data):
 
 
 def _reformat_metadata(metadata):
-    new_data = {}
+    new_data = OrderedDict()
     for station_data in metadata['STATION']:
         new_data[station_data['STID']] = station_data
     return new_data
@@ -221,6 +223,7 @@ class MesoWest(Meso):
         self.Data = None
         self.Metadata = None
         self.data_variables = []
+        self.stations = []
 
     def lat(self, stations=None):
         if stations is None:
@@ -246,7 +249,7 @@ class MesoWest(Meso):
         except AttributeError:
             raise AttributeError('Call to lon method is only valid after metadata are loaded.')
 
-    def timeseries(self, start, end, chunks='year', verbose=False, **kwargs):
+    def timeseries(self, start, end, chunks='year', sort_keys=True, verbose=False, **kwargs):
         """
         Wrapper for the MesoPy 'timeseries' method. Takes in the same 'start', 'end', and 'kwargs'. The parameter
         'chunks' specifies whether data should be retrieved in groups of yearly, monthly, weekly, or daily timeseries.
@@ -255,6 +258,7 @@ class MesoWest(Meso):
         :param start: str: starting date for MesoPy timeseries (YYYYMMDDHHMM)
         :param end: str: ending date for MesoPy timeseries (YYYYMMDDHHMM)
         :param chunks: str: 'year', 'month', 'week', or 'day', the interval for retrieving data from the API
+        :param sort_keys: bool: if True, sorts the keys (station IDs) alphabetically in the resulting dictionary
         :param verbose: bool: print progress statements
         :param kwargs: passed to MesoPy.Meso.timeseries
         :return: dict of pandas DataFrames for each station
@@ -274,13 +278,20 @@ class MesoWest(Meso):
                 first = False
             else:
                 data = _concatenate_data(data, _reformat_data(ts, *chunk))
-        return data
+        if sort_keys:
+            return OrderedDict((s, data[s]) for s in sorted(data))
+        else:
+            return data
 
-    def metadata(self, **kwargs):
+    def metadata(self, sort_keys=True, **kwargs):
         meta = super(MesoWest, self).metadata(**kwargs)
-        return _reformat_metadata(meta)
+        new_meta = _reformat_metadata(meta)
+        if sort_keys:
+            return OrderedDict((s, new_meta[s]) for s in sorted(new_meta))
+        else:
+            return new_meta
 
-    def load(self, start, end, chunks='year', file=None, verbose=False, **kwargs):
+    def load(self, start, end, file=None, chunks='year', verbose=False, **kwargs):
         """
         Retrieves a timeseries of data with the specified start and end times, and kwargs passed to the MesoPy
         'timeseries' method. Loads the concise, formatted data to the instance's 'Data' attribute. The parameter
@@ -324,7 +335,9 @@ class MesoWest(Meso):
                 pickle.dump(ts, handle, pickle.HIGHEST_PROTOCOL)
 
         self.Data = ts
+        self.stations = []
         for station, df in ts.items():
+            self.stations.append(station)
             self.data_variables = list(set(self.data_variables + list(df.columns)))
 
     def load_metadata(self, **kwargs):
@@ -337,3 +350,31 @@ class MesoWest(Meso):
         """
         meta = self.metadata(**kwargs)
         self.Metadata = meta
+
+    def trim_stations(self, missing_tolerance=0.05):
+        """
+        Trims stations in the loaded data that have a larger fraction of missing values than missing_tolerance.
+
+        :param missing_tolerance: float: fraction of missing values allowed in a station's timeseries
+        :return:
+        """
+        def get_count(data):
+            station_list = list(data.keys())
+            n_s = len(station_list)
+            count = 0
+            for s in range(n_s):
+                count = max(count, np.sum(~np.isnan(data[station_list[s]].values)))
+            return count
+
+        def trim(data, num):
+            new_data = {}
+            for s in data.keys():
+                if np.sum(~np.isnan(data[s].values)) >= num:
+                    new_data[s] = data[s]
+            return new_data
+
+        if missing_tolerance > 1. or missing_tolerance < 0.:
+            raise ValueError("'missing_tolerance' must be between 0 and 1")
+        count_non_missing = (1 - missing_tolerance) * get_count(self.Data)
+        self.Data = trim(self.Data, count_non_missing)
+        self.stations = list(self.Data.keys())

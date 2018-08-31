@@ -1,0 +1,93 @@
+# variable,file_prefix,long_name,level,units
+U1000,ugrd_pres,U at 1000 hPa,1000,m s-1
+U925,ugrd_pres,U at 925 hPa,925,m s-1
+U850,ugrd_pres,U at 850 hPa,850,m s-1
+U700,ugrd_pres,U at 700 hPa,700,m s-1
+U500,ugrd_pres,U at 500 hPa,500,m s-1
+U300,ugrd_pres,U at 300 hPa,300,m s-1
+U250,ugrd_pres,U at 250 hPa,250,m s-1
+U200,ugrd_pres,U at 200 hPa,200,m s-1
+U100,ugrd_pres,U at 100 hPa,100,m s-1
+U50,ugrd_pres,U at 50 hPa,50,m s-1
+U10,ugrd_pres,U at 10 hPa,10,m s-1
+V1000,vgrd_pres,V at 1000 hPa,1000,m s-1
+V925,vgrd_pres,V at 925 hPa,925,m s-1
+V850,vgrd_pres,V at 850 hPa,850,m s-1
+V700,vgrd_pres,V at 700 hPa,700,m s-1
+V500,vgrd_pres,V at 500 hPa,500,m s-1
+V300,vgrd_pres,V at 300 hPa,300,m s-1
+V250,vgrd_pres,V at 250 hPa,250,m s-1
+V200,vgrd_pres,V at 200 hPa,200,m s-1
+V100,vgrd_pres,V at 100 hPa,100,m s-1
+V50,vgrd_pres,V at 50 hPa,50,m s-1
+V10,vgrd_pres,V at 10 hPa,10,m s-1
+Z1000,hgt_pres,Z at 1000 hPa,1000,gpm
+Z925,hgt_pres,Z at 925 hPa,925,gpm
+Z850,hgt_pres,Z at 850 hPa,850,gpm
+Z700,hgt_pres,Z at 700 hPa,700,gpm
+Z500,hgt_pres,Z at 500 hPa,500,gpm
+Z300,hgt_pres,Z at 300 hPa,300,gpm
+Z250,hgt_pres,Z at 250 hPa,250,gpm
+Z200,hgt_pres,Z at 200 hPa,200,gpm
+Z100,hgt_pres,Z at 100 hPa,100,gpm
+Z50,hgt_pres,Z at 50 hPa,50,gpm
+Z10,hgt_pres,Z at 10 hPa,10,gpm
+T1000,tmp_pres,T at 1000 hPa,1000,K
+T925,tmp_pres,T at 925 hPa,925,K
+T850,tmp_pres,T at 850 hPa,850,K
+T700,tmp_pres,T at 700 hPa,700,K
+T500,tmp_pres,T at 500 hPa,500,K
+T300,tmp_pres,T at 300 hPa,300,K
+T250,tmp_pres,T at 250 hPa,250,K
+T200,tmp_pres,T at 200 hPa,200,K
+T100,tmp_pres,T at 100 hPa,100,K
+T50,tmp_pres,T at 50 hPa,50,K
+T10,tmp_pres,T at 10 hPa,10,K
+Q1000,spfh_pres,Q at 1000 hPa,1000,kg kg-1
+Q925,spfh_pres,Q at 925 hPa,925,kg kg-1
+Q850,spfh_pres,Q at 850 hPa,850,kg kg-1
+Q700,spfh_pres,Q at 700 hPa,700,kg kg-1
+Q500,spfh_pres,Q at 500 hPa,500,kg kg-1
+Q300,spfh_pres,Q at 300 hPa,300,kg kg-1
+Q250,spfh_pres,Q at 250 hPa,250,kg kg-1
+Q200,spfh_pres,Q at 200 hPa,200,kg kg-1
+Q100,spfh_pres,Q at 100 hPa,100,kg kg-1
+Q50,spfh_pres,Q at 50 hPa,50,kg kg-1
+Q10,spfh_pres,Q at 10 hPa,10,kg kg-1
+MSLP,pres_msl,Mean sea-level pressure (Pa) [Y],,Pa
+SKNT,tmp_sfc,Skin temperature (K) [Y],,K
+SOILT,tmp_bgrnd,Soil temperature 0.0 to 0.1 m depth (K) [Y],,K
+SOILW,soilw_bgrnd,Volumetric soil moisture content 0.0 to 0.1 m depth (fraction between wilting and saturation) [Y],,
+WEASD,weasd_sfc,Water equivalent of accumulated snow depth (kg m-2 i.e. mm) [Y],,mm
+TMP2,tmp_2m,2-meter temperature (K) [Y],,K
+SPH2,spfh_2m,2-meter specific humidity (kg kg-1 dry air) [Y],,kg kg-1
+TMAX2,tmax_2m,Maximum temperature (K) in last 6-h period (00 06 12 18 UTC) or in last 3-h period (03 09 15 21 UTC) [Y],,K
+TMIN2,tmin_2m,Minimum temperature (K) in last 6-h period (00 06 12 18 UTC) or in last 3-h period (03 09 15 21 UTC) [Y],,K
+UGRD,ugrd_10m,10-m u wind component (ms-1) [Y],,m s-1
+VGRD,vgrd_10m,10-m v wind component (ms-1) [Y],,m s-1
+ACPC,apcp_sfc,Total precipitation (kg m-2 i.e. mm) in last 6-h period (00 06 12 18 UTC) or in last 3-h period (03 09 15 21 UTC) [Y],,mm
+WATR,watr_sfc,Water runoff (kg m-2 i.e. mm) [Y],,mm
+LHTFL,lhtfl_sfc,Average surface latent heat net flux (W m-2) [Y],,W m-2
+SHTFL,shtfl_sfc,Average sensible heat net flux (W m-2) [Y],,W m-2
+GFLUX,gflux_sfc,Average ground heat net flux (W m-2) [Y],,W m-2
+SUN,suns_sfc,Sunshine (units?),,
+CAPE,cape_sfc,Convective available potential energy (J kg-1) [Y],,J kg-1
+CIN,cin_sfc,Convective inhibition (J kg-1) [Y],,J kg-1
+PWAT,pwat_eatm,Precipitable water (kg m-2 i.e. mm) [Y],,mm
+TCOLC,tcolc_eatm,Total-column integrated condensate (kg m-2 i.e. mm) [Y],,mm
+CLD,tcdc_eatm,Total cloud cover (%),,percent
+DSWRF,dswrf_sfc,Downward short-wave radiation flux at the surface (W m-2) [Y],,W m-2
+DLWRF,dlwrf_sfc,Downward long-wave radiation flux at the surface (W m-2) [Y],,W m-2
+USWRF,uswrf_sfc,Upward short-wave radiation flux at the surface (W m-2) [Y],,W m-2
+ULWRF,ulwrf_sfc,Upward long-wave radiation flux at the surface (W m-2) [Y],,W m-2
+ULWRFT,ulwrf_tatm,Upward long-wave radiation flux at the top of the atmosphere (W m-2) [Y],,W m-2
+PVORT,pvort_isen,Potential vorticity on q = 320K isentropic surface (K m2 kg-1 s-1),,K m2 kg-1 s-1
+UPVOR,ugrd_pvor,U component on 2 PVU (1 PVU = 1 K m2 kg-1 s-1) isentropic surface (ms-1),,m s-1
+VPVOR,vgrd_pvor,V component on 2 PVU isentropic surface (ms-1),,m s-1
+TPVOR,tmp_pvor,Temperature on 2 PVU isentropic surface (K),,K
+PPVOR,pres_pvor,Pressure on 2 PVU isentropic surface (Pa),,Pa
+UGRD80,ugrd_80m,80-m u wind component (ms-1) [Y],,m s-1
+VGRD80,vgrd_80m,80-m v wind component (ms-1) [Y],,m s-1
+WP80,wmixe_80m,80-m wind power [Y],,
+W850,vvel_850,Vertical velocity at 850 hPa (Pa s-1),,Pa s-1
+PSFC,pres_sfc,Surface Pressure (Pa),,Pa

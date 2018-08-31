@@ -38,7 +38,7 @@ init_dates = list(pd_date_range.to_pydatetime())
 ensemble = NCARArray(root_directory='/Users/jweyn/Data/NCAR_Ensemble')
 ensemble.set_init_dates(init_dates)
 ensemble.set_forecast_hour_coord(verification_forecast_hours)
-ensemble.load(concat_dim='init_date', coords=[], autoclose=True)
+ensemble.open(concat_dim='init_date', coords=[], autoclose=True)
 
 
 # Create a Radar object to load data from
@@ -46,7 +46,7 @@ radar_root_dir = '/Users/jweyn/Data/NEXRAD'
 radar_file = '%s/201604.nc' % radar_root_dir
 
 radar = IEMRadar(file_name=radar_file, root_directory=radar_root_dir)
-radar.load()
+radar.open()
 
 
 # Calculate the FSS

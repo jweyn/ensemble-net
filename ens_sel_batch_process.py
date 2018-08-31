@@ -10,34 +10,37 @@ Processes training data for an ensemble_selection model in 1-month batches, writ
 algorithm.
 """
 
-from ensemble_net.data_tools import NCARArray, MesoWest
+from ensemble_net.data_tools import NCARArray, GR2Array, MesoWest
 from ensemble_net.util import date_to_meso_date
 from ensemble_net.verify import ae_meso
-from ensemble_net.ensemble_selection import preprocessing, verify
+from ensemble_net.ensemble_selection import preprocessing
 import numpy as np
 import pandas as pd
 import xarray as xr
 import netCDF4 as nc
 from datetime import datetime, timedelta
 
+import warnings
+warnings.filterwarnings("ignore")
+
 
 # Ensemble data parameters
-start_init_date = datetime(2015, 4, 1)
-end_init_date = datetime(2016, 3, 31)
+start_init_date = datetime(2015, 1, 1)
+end_init_date = datetime(2015, 12, 31)
 forecast_hours = list(range(0, 25, 12))
-members = list(range(1, 11))
+members = list(range(0, 11))
 retrieve_forecast_variables = ('REFC', 'REFD_MAX', 'TMP2', 'DPT2', 'MSLP', 'UGRD', 'VGRD', 'CAPE', 'CIN', 'LFTX',
                                'UBSHR6', 'VBSHR6', 'HLCY1')
-forecast_variables = ('TMP2', 'DPT2', 'MSLP', 'CAPE')
-verification_variables = ('TMP2', 'DPT2', 'MSLP')
+forecast_variables = ('TMP2', 'SPH2', 'MSLP', 'CAPE', 'Z500', 'T850', 'W850', 'PWAT')
+verification_variables = ('TMP2', 'MSLP')
 
 # Subset with grid parameters
 lat_0 = 28.
 lat_1 = 40.
 lon_0 = -100.
 lon_1 = -78.
-grid_factor = 4
-num_members = 10
+grid_factor = 1
+num_members = 11
 
 # When formatting data for ingestion into the learning algorithm, we can use convolutions over the spatial data to
 # increase the number of training samples at the expense of training features. Set 'convolution' to None to disable
@@ -48,14 +51,15 @@ convolution_agg = 'rmse'
 
 # If enabled, this option retrieves the forecast data from the NCAR server. Disable if data has already been processed
 # by this script or a different one.
-retrieve_forecast_data = True
+retrieve_forecast_data = False
 # If enabled, these options load data from files instead of performing calculations again.
-load_existing_data = False
+load_existing_data = True
 # File paths, beginning with the directory in which to place the data
 root_data_dir = '/home/disk/wave/jweyn/Data/ensemble-net/'
-meso_file = '%s/mesowest-201504-201603.pkl' % root_data_dir
-ae_meso_file = '%s/mesowest-error-201504-201603.nc' % root_data_dir
-predictor_file = '%s/predictors_201504-201603_28N43N100W80W_x4_no_c.nc' % root_data_dir
+meso_file = '%s/mesowest_201501-201512.pkl' % root_data_dir
+copy_stations_file = None  # '%s/mesowest-201504-201603.nc' % root_data_dir
+ae_meso_file = '%s/gr2_meso_error_201501-201512.nc' % root_data_dir
+predictor_file = '%s/predictors_gr2_201501-201512_28N40N100W78W_no_c.nc' % root_data_dir
 
 
 # Generate monthly batches of dates
@@ -66,6 +70,10 @@ month_list = []
 for m in range(len(unique_months)):
     month_list.append(list(dates[months == unique_months[m]].to_pydatetime()))
 dates = list(dates.to_pydatetime())
+
+
+# netCDF fill value
+fill_value = np.array(nc.default_fillvals['f4']).astype(np.float32)
 
 
 # Generate the dataset on disk for the predictors. The first predictor arrays will determine the dimensions.
@@ -80,15 +88,15 @@ get_dims = True
 
 # Load NCAR Ensemble data
 print('Loading NCAR ensemble data...')
-ensemble = NCARArray(root_directory='/home/disk/wave/jweyn/Data/NCAR_Ensemble',)
+ensemble = GR2Array(root_directory='/home/disk/wave2/jweyn/Data/GEFSR2')
 ensemble.set_init_dates(dates)
 ensemble.forecast_hour_coord = forecast_hours  # Not good practice, but an override removes unnecessary time indices
 # Retrieve forecast data by monthly batches, deleting the raw files along the way
 if retrieve_forecast_data:
     for batch in month_list:
-        ensemble.retrieve(batch, forecast_hours, members, get_ncar_netcdf=False, verbose=True)
+        ensemble.retrieve(batch, forecast_hours, members, verbose=True)
         ensemble.write(retrieve_forecast_variables, init_dates=batch, forecast_hours=forecast_hours, members=members,
-                       omit_existing=True, use_ncar_netcdf=False, verbose=True, delete_raw_files=True)
+                       omit_existing=True, verbose=True, delete_raw_files=True)
 
 
 # Generate the predictors from the ensemble, iterating over init_dates
@@ -99,8 +107,8 @@ for date in dates:
     idate += 1
     print('Ensemble predictors for %s' % date)
     ensemble.set_init_dates([date])
-    ensemble.load(coords=[], autoclose=True,
-                  chunks={'member': 10, 'time': 12, 'south_north': 100, 'west_east': 100})
+    ensemble.open(coords=[], autoclose=True,
+                  chunks={'member': 10, 'time': 12, 'lat': 100, 'lon': 100})
     raw_forecast_predictors = preprocessing.predictors_from_ensemble(ensemble, (lon_0, lon_1), (lat_0, lat_1),
                                                                      forecast_hours=tuple(forecast_hours),
                                                                      variables=forecast_variables,
@@ -124,10 +132,11 @@ for date in dates:
             ncf.createDimension('convolution', raw_forecast_predictors.shape[-3])
             nc_var = ncf.createVariable('ENS_PRED', np.float32,
                                         ('init_date', 'ens_var', 'member', 'ens_time', 'convolution', 'ny', 'nx'),
-                                        zlib=True)
+                                        fill_value=fill_value, zlib=True)
         else:
             nc_var = ncf.createVariable('ENS_PRED', np.float32,
-                                        ('init_date', 'ens_var', 'member', 'ens_time', 'ny', 'nx'), zlib=True)
+                                        ('init_date', 'ens_var', 'member', 'ens_time', 'ny', 'nx'),
+                                        fill_value=fill_value, zlib=True)
         nc_var.setncatts({
             'long_name': 'Predictors from ensemble',
             'units': 'N/A'
@@ -153,25 +162,49 @@ else:
     meso_end_date = date_to_meso_date(end_init_date + timedelta(hours=max(forecast_hours)))
     meso = MesoWest(token='')
     meso.load_metadata(bbox=bbox, network='1')
-    if not load_existing_data:
-        meso.load(meso_start_date, meso_end_date, chunks='day', file=meso_file, verbose=True,
-                  bbox=bbox, network='1', vars=verification_variables, units='temp|K', hfmetars='0')
-
+    meso.load(meso_start_date, meso_end_date, chunks='day', file=meso_file, verbose=True,
+              bbox=bbox, network='1', vars=verification_variables, units='temp|K', hfmetars='0')
+    if copy_stations_file is not None:
+        meso_copy = MesoWest(token='')
+        meso_copy.load('', '', file=copy_stations_file)
+        meso_copy.trim_stations(0.01)
+        keep_stations = meso_copy.Data.keys()
+        for station in meso.Data.keys():
+            if station not in keep_stations:
+                del meso.Data[station]
+        # TODO: something for the stations that are missing in this new meso file
+    else:
+        meso.trim_stations(0.01)
     # Reload ensemble with all data
     ensemble.set_init_dates(dates)
-    ensemble.load(coords=[], autoclose=True,
-                  chunks={'member': 10, 'time': 12, 'south_north': 100, 'west_east': 100})
+    ensemble.open(decode_times=False, autoclose=True,
+                  chunks={'member': 10, 'time': 12, 'lat': 100, 'lon': 100})
     error_ds = ae_meso(ensemble, meso)
     error_ds.to_netcdf(ae_meso_file)
 
 # Thankfully, ensemble is only needed here for lat/lon values.
-raw_error_predictors = preprocessing.predictors_from_ae_meso(error_ds, ensemble, (lon_0, lon_1), (lat_0, lat_1),
-                                                             forecast_hours=tuple(forecast_hours),
-                                                             variables=verification_variables,
-                                                             convolution=convolution,
-                                                             convolution_step=convolution_step,
-                                                             convolution_agg=convolution_agg,
-                                                             missing_tolerance=0.01, verbose=True)
+if copy_stations_file:
+    mt = 1.0
+else:
+    mt = 0.01
+if convolved:
+    raw_error_predictors = preprocessing.predictors_from_ae_meso(error_ds, ensemble, (lon_0, lon_1), (lat_0, lat_1),
+                                                                 forecast_hours=tuple(forecast_hours),
+                                                                 variables=verification_variables,
+                                                                 convolution=convolution,
+                                                                 convolution_step=convolution_step,
+                                                                 convolution_agg=convolution_agg,
+                                                                 missing_tolerance=mt, verbose=True)
+else:
+    raw_error_predictors, stations = preprocessing.predictors_from_ae_meso(error_ds, ensemble, (lon_0, lon_1),
+                                                                           (lat_0, lat_1),
+                                                                           forecast_hours=tuple(forecast_hours),
+                                                                           variables=verification_variables,
+                                                                           convolution=convolution,
+                                                                           convolution_step=convolution_step,
+                                                                           convolution_agg=convolution_agg,
+                                                                           missing_tolerance=mt, verbose=True,
+                                                                           return_stations=True)
 
 # Targets are the final time step in the error predictors. Faster to do it this way than with separate calls to the
 # predictors_from_ae_meso method for predictor and target data.
@@ -183,11 +216,13 @@ ncf.createDimension('obs_var', raw_error_predictors.shape[1])
 ncf.createDimension('obs_time', raw_error_predictors.shape[-2])
 if convolved:
     nc_var = ncf.createVariable('AE_PRED', np.float32,
-                                ('init_date', 'obs_var', 'member', 'obs_time', 'convolution'), zlib=True)
+                                ('init_date', 'obs_var', 'member', 'obs_time', 'convolution'),
+                                fill_value=fill_value, zlib=True)
 else:
     ncf.createDimension('station', raw_error_predictors.shape[-1])
     nc_var = ncf.createVariable('AE_PRED', np.float32,
-                                ('init_date', 'obs_var', 'member', 'obs_time', 'station'), zlib=True)
+                                ('init_date', 'obs_var', 'member', 'obs_time', 'station'),
+                                fill_value=fill_value, zlib=True)
 nc_var.setncatts({
     'long_name': 'Predictors from MesoWest observation errors',
     'units': 'N/A'
@@ -198,15 +233,30 @@ ncf.variables['AE_PRED'][:] = raw_error_predictors
 # Write targets to the file
 if convolved:
     nc_var = ncf.createVariable('AE_TAR', np.float32,
-                                ('init_date', 'obs_var', 'member', 'convolution'), zlib=True)
+                                ('init_date', 'obs_var', 'member', 'convolution'), fill_value=fill_value, zlib=True)
 else:
     nc_var = ncf.createVariable('AE_TAR', np.float32,
-                                ('init_date', 'obs_var', 'member', 'station'), zlib=True)
+                                ('init_date', 'obs_var', 'member', 'station'), fill_value=fill_value, zlib=True)
 nc_var.setncatts({
     'long_name': 'Targets from MesoWest observation errors',
     'units': 'N/A'
 })
 nc_var = None
 ncf.variables['AE_TAR'][:] = ae_targets
+
+# Add the station latitudes and longitudes
+if not convolved:
+    nc_var = ncf.createVariable('station_lat', np.float32, ('station',), fill_value=fill_value)
+    nc_var.setncatts({
+        'long_name': 'Latitude of individual stations',
+        'units': 'degrees_north'
+    })
+    nc_var[:] = np.array([error_ds[s].attrs['LATITUDE'] for s in stations])
+    nc_var = ncf.createVariable('station_lon', np.float32, ('station',), fill_value=fill_value)
+    nc_var.setncatts({
+        'long_name': 'Longitude of individual stations',
+        'units': 'degrees_east'
+    })
+    nc_var[:] = np.array([error_ds[s].attrs['LONGITUDE'] for s in stations])
 
 ncf.close()
