@@ -45,26 +45,25 @@ def ae_meso(ensemble, meso, variables='all', stations='all', verbose=True):
     elif not (isinstance(variables, list) or isinstance(variables, tuple)):
         variables = [variables]
 
-    ens_times = list(ensemble.Dataset.variables['time'].values)
-
     ds = xr.Dataset(
         coords={
-            'init_date': init_dates,
+            'time': init_dates,
             'member': members,
-            'time': ens_times,
+            'fhour': forecast_hours,
             'variable': variables
         }
     )
 
     num_stations = len(stations)
     station_count = 0
+    new_ds = ensemble.Dataset.sel(fhour=forecast_hours)
     for stid, df in meso.Data.items():
         if stid not in stations:
             continue
         station_count += 1
         if verbose:
             print('ae_meso: processing station %d of %d (%s)' % (station_count, num_stations, stid))
-        error = np.full((len(init_dates), len(members), len(ens_times), len(variables)), np.nan, dtype=np.float32)
+        error = np.full((len(members), len(init_dates), len(forecast_hours), len(variables)), np.nan, dtype=np.float32)
         lat, lon = float(meso.Metadata[stid]['LATITUDE']), float(meso.Metadata[stid]['LONGITUDE'])
         try:
             ens_y_index, ens_x_index = ensemble.closest_lat_lon(lat, lon)
@@ -75,18 +74,21 @@ def ae_meso(ensemble, meso, variables='all', stations='all', verbose=True):
             var = variables[v]
             if var not in df.columns:  # Missing variable
                 continue
-            ens_data = ensemble.Dataset[var][:, :, :, ens_y_index, ens_x_index].values
-            obs_data = np.full(len(ens_times), np.nan, dtype=np.float32)
-            for t in range(len(ens_times)):
-                time = ens_times[t]
-                try:
-                    obs_time_index = df.index.get_loc(time, method='nearest', tolerance=timedelta(hours=1))
-                except (IndexError, KeyError, ValueError):  # Missing value
-                    continue
-                obs_data[t] = df[var].iloc[obs_time_index]
+            # Transpose the ensemble data to members, time, fhour for broadcasting
+            ens_data = new_ds[var][:, :, :, ens_y_index, ens_x_index].values.transpose((1, 0, 2))
+            obs_data = np.full((len(init_dates), len(forecast_hours)), np.nan, dtype=np.float32)
+            for d in range(len(init_dates)):
+                for f in range(len(forecast_hours)):
+                    time = init_dates[d] + timedelta(hours=forecast_hours[f])
+                    try:
+                        obs_time_index = df.index.get_loc(time, method='nearest', tolerance=timedelta(hours=1))
+                    except (IndexError, KeyError, ValueError):  # Missing value
+                        continue
+                    obs_data[d, f] = df[var].iloc[obs_time_index]
             error[:, :, :, v] = ens_data - obs_data
 
-        ds[stid] = (('init_date', 'member', 'time', 'variable'), error)
+        # Transpose error back to time, member, fhour, variable
+        ds[stid] = (('time', 'member', 'fhour', 'variable'), error.transpose((1, 0, 2, 3)))
         ds[stid].attrs['LATITUDE'] = float(meso.Metadata[stid]['LATITUDE'])
         ds[stid].attrs['LONGITUDE'] = float(meso.Metadata[stid]['LONGITUDE'])
 
@@ -101,7 +103,7 @@ def fss_radar(ensemble, radar, threshold, xlim, ylim, do_pmm=True, fraction_requ
     calculates the ensemble probability-matched mean and the FSS for the PMM. Requires xlim and ylim to subset the
     domain because interpolation of dense fields uses significant memory.
 
-    :param ensemble: NCARArray object with loaded data
+    :param ensemble: NCARArray or GR2Array object with loaded data
     :param radar: IEMRadar object with loaded data
     :param threshold: float: dBZ threshold for the FSS calculation
     :param xlim: tuple or list: longitude limits
@@ -118,7 +120,7 @@ def fss_radar(ensemble, radar, threshold, xlim, ylim, do_pmm=True, fraction_requ
     :return:
     """
     if ensemble.Dataset is None:
-        raise ValueError('data must be loaded to ensemble (NCARArray) object')
+        raise ValueError('data must be loaded to ensemble object')
     if radar.Dataset is None:
         raise ValueError('data must be loaded to IEMRadar object')
     init_dates = ensemble.dataset_init_dates
@@ -150,13 +152,8 @@ def fss_radar(ensemble, radar, threshold, xlim, ylim, do_pmm=True, fraction_requ
             if verbose:
                 print('\nfss_radar: init_date %s; forecast hour %d' % (init_date, verif_hour))
 
-            # Check that we have ensemble data
-            try:
-                ensemble_time_index = list(ensemble.Dataset.variables['time'].values)\
-                    .index(np.datetime64(verif_datetime))
-            except ValueError:
-                print('fss_radar: warning: no ensemble data found for %s; omitting calculation' % verif_datetime)
-                continue
+            # Get forecast hour index
+            ensemble_fhour_index = list(ensemble.Dataset.variables['fhour'].values).index(v)
 
             # First check if we have cached interpolated radar. No need to do it again if we've gotten it for the
             # previous init_date. If the forecast hour is less than 24, we know we won't need the data again, so we
@@ -203,7 +200,7 @@ def fss_radar(ensemble, radar, threshold, xlim, ylim, do_pmm=True, fraction_requ
             # Get the ensemble data
             if verbose:
                 print('fss_radar: retrieving ensemble reflectivity values')
-            ensemble_array = ensemble.Dataset.variables[variable][d, :, ensemble_time_index, y1:y2, x1:x2].values
+            ensemble_array = ensemble.Dataset.variables[variable][d, :, ensemble_fhour_index, y1:y2, x1:x2].values
 
             # Print a diagnostic statement
             if verbose:

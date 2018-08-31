@@ -14,5 +14,6 @@ Requires:
 """
 
 from .ncar import NCARArray
+from .reforecast2 import GR2Array
 from .iem_nexrad import IEMRadar
 from .mesowest import MesoWest
