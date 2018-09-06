@@ -31,9 +31,9 @@ from datetime import datetime
 root_ensemble_dir = '%s/Data/NCAR_Ensemble' % os.environ['WORKDIR']
 root_data_dir = '%s/Data/ensemble-net' % os.environ['WORKDIR']
 predictor_file = '%s/predictors_201504-201603_28N40N100W78W_x4_no_c.nc' % root_data_dir
-model_file = '%s/selector_201504-201603_no_c_300days' % root_data_dir
-result_file = '%s/result_201504-201603_28N40N100W78W_x4_no_c.nc' % root_data_dir
-figure_files = '%s/MSLP_{:0>2d}_{:s}.pdf' % root_data_dir
+model_file = '%s/selector_201504-201603_no_c_MSLP_no_e' % root_data_dir
+result_file = '%s/result_201504-201603_28N40N100W78W_x4_no_c_MSLP_no_e.nc' % root_data_dir
+figure_files = '%s/MSLP_only_no_e_{:0>2d}_{:s}.pdf' % root_data_dir
 
 # Model parameters
 forecast_hours = [0, 12, 24]
@@ -47,7 +47,7 @@ val_size = 46
 random.seed(0)
 
 # Option to run the model. If this is False, then prediction data must be available in an existing 'result_file'.
-calculate = True
+calculate = False
 
 # Optionally predict for only a subset of variables. Must use integer index as a list, or 'all'
 variables = 'all'
@@ -72,7 +72,7 @@ num_plots = 3
 plot_member = 1
 plot_variable = 'TMP2'
 add_slp_contour = True
-plot_error_variable = 2
+plot_error_variable = 0
 e_scale = 0.01
 title = '%s MSLP 24-hour error from %s'
 plot_kwargs = {
@@ -168,26 +168,26 @@ if ens_sel == {}:
 else:
     num_variables = len(variables)
 
-# Get the indices for a validation set
-print('Processing validation set...')
-if val == 'first':
-    val_set = list(range(0, val_size))
-    train_set = list(range(val_size, num_dates))
-elif val == 'last':
-    val_set = list(range(num_dates - val_size, num_dates))
-    train_set = list(range(0, num_dates - val_size))
-elif val == 'random':
-    train_set = list(range(num_dates))
-    val_set = []
-    for j in range(val_size):
-        i = random.choice(train_set)
-        val_set.append(i)
-        train_set.remove(i)
-    val_set.sort()
-else:
-    raise ValueError("'val' must be 'first', 'last', or 'random'")
-
 if calculate:
+    # Get the indices for a validation set
+    print('Processing validation set...')
+    if val == 'first':
+        val_set = list(range(0, val_size))
+        train_set = list(range(val_size, num_dates))
+    elif val == 'last':
+        val_set = list(range(num_dates - val_size, num_dates))
+        train_set = list(range(0, num_dates - val_size))
+    elif val == 'random':
+        train_set = list(range(num_dates))
+        val_set = []
+        for j in range(val_size):
+            i = random.choice(train_set)
+            val_set.append(i)
+            train_set.remove(i)
+        val_set.sort()
+    else:
+        raise ValueError("'val' must be 'first', 'last', or 'random'")
+
     p_test, t_test = process_chunk(predictor_ds.isel(init_date=val_set), **ens_sel)
 
     # Load the model

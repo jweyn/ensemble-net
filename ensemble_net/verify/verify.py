@@ -135,6 +135,11 @@ def fss_radar(ensemble, radar, threshold, xlim, ylim, do_pmm=True, fraction_requ
     upper_right_index = ensemble.closest_lat_lon(ylim[1], xlim[1])
     y1, x1 = lower_left_index
     y2, x2 = upper_right_index
+    try:
+        if ensemble.inverse_lat:
+            y1, y2 = (y2, y1)
+    except AttributeError:
+        pass
     lat_subset = ensemble.lat[y1:y2, x1:x2]
     lon_subset = ensemble.lon[y1:y2, x1:x2]
     num_points = lat_subset.shape[0] * lat_subset.shape[1]
