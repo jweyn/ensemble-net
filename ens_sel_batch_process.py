@@ -163,13 +163,14 @@ else:
     meso = MesoWest(token='')
     meso.load_metadata(bbox=bbox, network='1')
     meso.load(meso_start_date, meso_end_date, chunks='day', file=meso_file, verbose=True,
-              bbox=bbox, network='1', vars=verification_variables, units='temp|K', hfmetars='0')
+              bbox=bbox, network='1', vars=verification_variables, units='temp|K', hfmetars='0', status='active')
     if copy_stations_file is not None:
         meso_copy = MesoWest(token='')
         meso_copy.load('', '', file=copy_stations_file)
         meso_copy.trim_stations(0.01)
-        keep_stations = meso_copy.Data.keys()
-        for station in meso.Data.keys():
+        keep_stations = list(meso_copy.Data.keys())
+        new_stations = list(meso.Data.keys())
+        for station in new_stations:
             if station not in keep_stations:
                 del meso.Data[station]
         # TODO: something for the stations that are missing in this new meso file

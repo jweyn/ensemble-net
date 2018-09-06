@@ -11,6 +11,7 @@ Methods for pre-processing data before use in an ensemble-selection model.
 import numpy as np
 import pickle
 from collections import OrderedDict
+from ..data_tools import NCARArray
 from ..nowcast.preprocessing import train_data_from_pickle, train_data_to_pickle, delete_nan_samples
 from datetime import datetime, timedelta
 from numba import jit
@@ -238,7 +239,7 @@ def predictors_from_ae_meso(ae_ds, ensemble, xlim, ylim, variables=(), forecast_
     'predictors_from_ensemble' for how the convolution works. If a convolution is requested in this function, then the
     available stations in the ae_mesowest dataset are combined into one metric at each convolution area.
 
-    :param ae_ds: xarray Dataset: result from ensemble_net.verify.ae_mesowest() for the ensemble
+    :param ae_ds: xarray Dataset: result from ensemble_net.verify.ae_meso() for the ensemble
     :param ensemble: NCARArray object with .open() method called
     :param xlim: tuple or list: longitude boundary limits
     :param ylim: tuple or list: latitude boundary limits
@@ -265,7 +266,7 @@ def predictors_from_ae_meso(ae_ds, ensemble, xlim, ylim, variables=(), forecast_
         n_s = len(station_list)
         count = 0
         for s in range(n_s):
-            count = max(count, ds[station_list[s]].values.size)
+            count = max(count, ds[station_list[s]].size)
         return count
 
     def trim_stations(ds, num):
@@ -281,7 +282,7 @@ def predictors_from_ae_meso(ae_ds, ensemble, xlim, ylim, variables=(), forecast_
                 result.append(s)
         return result
 
-    def find_stations_in_array(d, ys, xs, tol=0.05):
+    def find_stations_in_array(d, ys, xs, tol=1.0):
         result = []
         for s, ll in d.items():
             distance = (ys - ll[0]) ** 2 + (xs - ll[1]) ** 2
@@ -359,7 +360,10 @@ def predictors_from_ae_meso(ae_ds, ensemble, xlim, ylim, variables=(), forecast_
     num_f_hours = len(forecast_hours)
     if convolution is None:
         # Subset stations by the ones within the lat/lon arrays
-        stations = find_stations_in_array(stations_dict, lat, lon - 360.)
+        if type(ensemble) is NCARArray:
+            stations = find_stations_in_array(stations_dict, lat, lon - 360., tol=0.05)
+        else:
+            stations = find_stations_in_array(stations_dict, lat, lon - 360.)
         if sort_stations:
             stations.sort()
         num_stations = len(stations)

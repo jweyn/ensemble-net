@@ -26,9 +26,9 @@ from shutil import copyfile
 
 # Paths to important files
 root_data_dir = '%s/Data/ensemble-net' % os.environ['WORKDIR']
-predictor_file = '%s/predictors_201504-201603_28N40N100W78W_x4_no_c.nc' % root_data_dir
-model_file = '%s/selector_201504-201603_no_c_300days' % root_data_dir
-result_file = '%s/result_201504-201603_28N40N100W78W_x4_no_c.nc' % root_data_dir
+predictor_file = '%s/predictors_gr2_201501-201612_28N40N100W78W_no_c.nc' % root_data_dir
+model_file = '%s/selector_gr2_201501-201612_no_c' % root_data_dir
+result_file = '%s/result_gr2_201501-201612_28N40N100W78W_no_c.nc' % root_data_dir
 convolved = False
 
 # Copy file to scratch space
@@ -41,20 +41,23 @@ variables = 'all'
 model_fields_only = False
 
 # Neural network configuration and options
-chunk_size = 10
-batch_size = 50
-scaler_fit_size = 100
-epochs_per_chunk = 10
-loops = 3
+chunk_size = 600
+batch_size = 100
+scaler_fit_size = -1
+epochs_per_chunk = 50
+loops = 1
 impute_missing = True
-scale_targets = False
+scale_targets = True
 val = 'random'
-val_size = 46
+val_size = 131
 # Use multiple GPUs
 n_gpu = 1
 
 # Seed the random validation set generator
 random.seed(0)
+
+# Print some results at the end
+print_results = False
 
 
 #%% End user configuration
@@ -280,7 +283,8 @@ last_time_scores = []
 last_time_ranks = []
 for day in val_set:
     day_as_list = [day]
-    print('\nDay %d:' % day)
+    if print_results:
+        print('\nDay %d:' % day)
     new_ds = predictor_ds.isel(init_date=day_as_list, **ens_sel)
     # TODO: fix shape error when model_fields_only == True
     select_predictors, select_shape = preprocessing.format_select_predictors(new_ds.ENS_PRED.values,
@@ -300,11 +304,12 @@ for day in val_set:
     last_time_ranks.append(select_verif_12[:, 1])
     ranks = np.vstack((selection[:, 1], select_verif[:, 1], select_verif_12[:, 1])).T
     scores = np.vstack((selection[:, 0], select_verif[:, 0], select_verif_12[:, 0])).T
-    print(ranks)
-    print('Rank score of Selector: %f' % verify.rank_score(ranks[:, 0], ranks[:, 1]))
-    print('Rank score of last-time estimate: %f' % verify.rank_score(ranks[:, 2], ranks[:, 1]))
-    print('MSE of Selector score: %f' % np.mean((scores[:, 0] - scores[:, 1]) ** 2.))
-    print('MSE of last-time estimate: %f' % np.mean((scores[:, 2] - scores[:, 1]) ** 2.))
+    if print_results:
+        print(ranks)
+        print('Rank score of Selector: %f' % verify.rank_score(ranks[:, 0], ranks[:, 1]))
+        print('Rank score of last-time estimate: %f' % verify.rank_score(ranks[:, 2], ranks[:, 1]))
+        print('MSE of Selector score: %f' % np.mean((scores[:, 0] - scores[:, 1]) ** 2.))
+        print('MSE of last-time estimate: %f' % np.mean((scores[:, 2] - scores[:, 1]) ** 2.))
 
 result['selector_scores'] = (('time', 'member'), selector_scores)
 result['selector_ranks'] = (('time', 'member'), selector_ranks)
