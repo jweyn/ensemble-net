@@ -12,8 +12,16 @@ from datetime import datetime
 import types
 import pickle
 import tempfile
-from copy import deepcopy
+from copy import copy
 import numpy as np
+
+import keras.models
+from keras.legacy import interfaces
+from keras.utils import conv_utils
+from keras.engine.base_layer import InputSpec
+from keras.engine.base_layer import Layer
+from keras import backend as K
+from keras import activations, initializers, regularizers, constraints
 
 
 # ==================================================================================================================== #
@@ -26,7 +34,6 @@ def make_keras_picklable():
 
     :return:
     """
-    import keras.models
 
     def __getstate__(self):
         model_str = ""
@@ -95,7 +102,7 @@ def get_from_class(module_name, class_name):
 def save_model(model, file_name):
     """
     Saves a class instance with a 'model' attribute to disk. Creates two files: one pickle file containing no model
-    saved as ${file_name}.pkl and one for the model saved as ${file_name}.keras. Use the function load_model() to load
+    saved as ${file_name}.pkl and one for the model saved as ${file_name}.keras. Use the `load_model()` method to load
     a model saved with this method.
 
     :param model: model instance (with a 'model' attribute) to save
@@ -103,7 +110,7 @@ def save_model(model, file_name):
     :return:
     """
     model.model.save('%s.keras' % file_name)
-    model_copy = deepcopy(model)
+    model_copy = copy(model)
     model_copy.model = None
     with open('%s.pkl' % file_name, 'wb') as f:
         pickle.dump(model_copy, f, protocol=pickle.HIGHEST_PROTOCOL)
@@ -111,15 +118,17 @@ def save_model(model, file_name):
 
 def load_model(file_name):
     """
-    Loads a model saved to disk with the 'save_model' method.
+    Loads a model saved to disk with the `save_model()` method.
 
     :param file_name: str: base name of save files
     :return: model: loaded object
     """
-    import keras.models
     with open('%s.pkl' % file_name, 'rb') as f:
         model = pickle.load(f)
-    model.model = keras.models.load_model('%s.keras' % file_name, compile=True)
+    custom_layers = {
+        'PartialConv2D': PartialConv2D
+    }
+    model.model = keras.models.load_model('%s.keras' % file_name, custom_objects=custom_layers, compile=True)
     return model
 
 
@@ -127,19 +136,11 @@ def load_model(file_name):
 # Custom Keras layers
 # ==================================================================================================================== #
 
-from keras.legacy import interfaces
-from keras.utils import conv_utils
-from keras.engine.base_layer import InputSpec
-from keras.engine.base_layer import Layer
-from keras import backend as K
-from keras import activations, initializers, regularizers, constraints
-
-
 class PartialConv2D(Layer):
     """
     Implementation of a 2D convolutional layer in Keras that applies convolution on a specified sub-set of features.
     Extends and modifies the abstract `Layer` class and, apart from the addition of the subsetting, implements all
-    features of the Conv2D class.
+    features of the Conv2D class. Largely derived from keras.layers.Conv2D
 
     2D convolution layer (e.g. spatial convolution over images).
 
@@ -274,7 +275,7 @@ class PartialConv2D(Layer):
         self.bias_constraint = constraints.get(bias_constraint)
 
         # custom
-        self.conv_size = conv_size
+        self.conv_size = tuple(conv_size)
         self.conv_first = conv_first
         self.num_conv_features = int(np.prod(self.conv_size))
         self.input_spec = InputSpec(ndim=2)
@@ -379,7 +380,6 @@ class PartialConv2D(Layer):
 
     def get_config(self):
         config = {
-            'rank': self.rank,
             'filters': self.filters,
             'conv_size': self.conv_size,
             'conv_first': self.conv_first,
@@ -399,7 +399,6 @@ class PartialConv2D(Layer):
             'bias_constraint': constraints.serialize(self.bias_constraint)
         }
         base_config = super(PartialConv2D, self).get_config()
-        base_config.pop('rank')
         return dict(list(base_config.items()) + list(config.items()))
 
 

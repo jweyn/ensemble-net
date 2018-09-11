@@ -57,7 +57,7 @@ n_gpu = 1
 random.seed(0)
 
 # Print some results at the end
-print_results = False
+print_results = True
 
 
 #%% End user configuration
@@ -179,7 +179,7 @@ num_outputs = t_val.shape[1]
 print('Building an EnsembleSelector model...')
 selector = model.EnsembleSelector(impute_missing=impute_missing, scale_targets=scale_targets)
 layers = (
-    ('PartialConv2D', (64,), {
+    ('PartialConv2D', (16,), {
         'kernel_size': (3, 3),
         'conv_size': conv_shape,
         'conv_first': True,
