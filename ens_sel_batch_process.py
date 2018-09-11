@@ -153,6 +153,7 @@ for date in dates:
 print('Loading or generating ae_meso data...')
 if load_existing_data:
     error_ds = xr.open_dataset(ae_meso_file)
+    ensemble.open()
 else:
     # Load observation data
     print('Loading MesoWest data...')
@@ -184,7 +185,7 @@ else:
     error_ds.to_netcdf(ae_meso_file)
 
 # Thankfully, ensemble is only needed here for lat/lon values.
-if copy_stations_file:
+if copy_stations_file is not None:
     mt = 1.0
 else:
     mt = 0.01

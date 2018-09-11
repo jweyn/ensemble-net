@@ -477,7 +477,7 @@ def convert_ae_meso_predictors_to_samples(predictors, convolved=False, agg=None,
     :param convolved: bool: if True, the predictors were generated with convolution != None.
     :param agg: None or str: if not None, converts all stations to an aggregated single error metric, 'mae', 'mse', or
         'rmse'. Ignored if convolved == True.
-    :param split_members: bool: if False, converts the members dimension to another image "channel", like variables
+    :param split_members: bool: if True, converts the members dimension to another image "channel", like variables
     :return: ndarray: array of reshaped predictors; tuple: shape of feature input, for future reshaping
     """
     shape = predictors.shape

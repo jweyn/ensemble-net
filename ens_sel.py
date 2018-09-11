@@ -27,8 +27,8 @@ from shutil import copyfile
 # Paths to important files
 root_data_dir = '%s/Data/ensemble-net' % os.environ['WORKDIR']
 predictor_file = '%s/predictors_gr2_201501-201612_28N40N100W78W_no_c.nc' % root_data_dir
-model_file = '%s/selector_gr2_201501-201612_no_c' % root_data_dir
-result_file = '%s/result_gr2_201501-201612_28N40N100W78W_no_c.nc' % root_data_dir
+model_file = '%s/selector_gr2_201501-201612_no_c_PC' % root_data_dir
+result_file = '%s/result_gr2_201501-201612_28N40N100W78W_no_c_PC.nc' % root_data_dir
 convolved = False
 
 # Copy file to scratch space
@@ -82,13 +82,14 @@ else:
 
 #%% Process
 
-def process_chunk(ds, **sel):
+def process_chunk(ds, ret=False, **sel):
     if len(sel) > 0:
         ds = ds.sel(**sel)
     forecast_predictors, fpi = preprocessing.convert_ensemble_predictors_to_samples(ds['ENS_PRED'].values,
                                                                                     convolved=convolved)
     ae_targets, eti = preprocessing.convert_ae_meso_predictors_to_samples(np.expand_dims(ds['AE_TAR'].values, 3),
                                                                           convolved=convolved)
+    fps = forecast_predictors.shape[1:]
     if model_fields_only:
         combined_predictors = preprocessing.combine_predictors(forecast_predictors)
     else:
@@ -102,7 +103,10 @@ def process_chunk(ds, **sel):
     else:
         p, t = preprocessing.delete_nan_samples(combined_predictors, ae_targets)
 
-    return p, t
+    if ret:
+        return p, t, fps
+    else:
+        return p, t
 
 
 def subprocess_chunk(pid, ds, shared, **sel):
@@ -166,7 +170,7 @@ while index < len(train_set):
 
 # Load the validation set
 new_ds = predictor_ds.isel(init_date=val_set)
-p_val, t_val = process_chunk(new_ds, **ens_sel)
+p_val, t_val, conv_shape = process_chunk(new_ds, ret=True, **ens_sel)
 input_shape = p_val.shape[1:]
 num_outputs = t_val.shape[1]
 
@@ -175,17 +179,19 @@ num_outputs = t_val.shape[1]
 print('Building an EnsembleSelector model...')
 selector = model.EnsembleSelector(impute_missing=impute_missing, scale_targets=scale_targets)
 layers = (
-    # ('Conv2D', (64,), {
-    #     'kernel_size': (3, 3),
-    #     'activation': 'relu',
-    #     'input_shape': input_shape
-    # }),
-    ('Dense', (1024,), {
+    ('PartialConv2D', (64,), {
+        'kernel_size': (3, 3),
+        'conv_size': conv_shape,
+        'conv_first': True,
         'activation': 'relu',
         'input_shape': input_shape
     }),
-    ('Dropout', (0.25,), {}),
-    ('Dense', (num_outputs,), {
+    # ('Dense', (1024,), {
+    #     'activation': 'relu',
+    #     'input_shape': input_shape
+    # }),
+    # ('Dropout', (0.25,), {}),
+    ('Dense', (2*num_outputs,), {
         'activation': 'relu'
     }),
     ('Dropout', (0.25,), {}),

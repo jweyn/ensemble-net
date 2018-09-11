@@ -180,7 +180,10 @@ def _reformat_data(data, start, end):
         expected_end = meso_date_to_datetime(end)
         expected_times = pd.date_range(expected_start, expected_end, freq='H').to_pydatetime()
         obs_hourly = obs_hourly.reindex(expected_times)
-        obs_hourly = obs_hourly.interpolate(limit=2)
+        try:
+            obs_hourly = obs_hourly.interpolate(limit=2)
+        except TypeError:  # all NaN
+            pass
 
         # Assign to the grand dictionary
         new_data[station_data['STID']] = obs_hourly

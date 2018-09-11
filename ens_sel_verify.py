@@ -12,7 +12,7 @@ plotting for spatial verification of model output, if convolutions were not used
 
 from ensemble_net.util import load_model
 from ensemble_net.ensemble_selection import preprocessing, verify
-from ensemble_net.data_tools import NCARArray
+from ensemble_net.data_tools import NCARArray, GR2Array
 from ensemble_net.plot import slp_contour
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
@@ -28,18 +28,18 @@ from datetime import datetime
 #%% User parameters
 
 # Paths to important files
-root_ensemble_dir = '%s/Data/NCAR_Ensemble' % os.environ['WORKDIR']
+root_ensemble_dir = '/home/disk/wave2/jweyn/Data/GEFSR2'
 root_data_dir = '%s/Data/ensemble-net' % os.environ['WORKDIR']
-predictor_file = '%s/predictors_201504-201603_28N40N100W78W_x4_no_c.nc' % root_data_dir
-model_file = '%s/selector_201504-201603_no_c_MSLP_no_e' % root_data_dir
-result_file = '%s/result_201504-201603_28N40N100W78W_x4_no_c_MSLP_no_e.nc' % root_data_dir
-figure_files = '%s/MSLP_only_no_e_{:0>2d}_{:s}.pdf' % root_data_dir
+predictor_file = '%s/predictors_gr2_201501-201612_25N45N105W75W_no_c.nc' % root_data_dir
+model_file = '%s/selector_gr2_201501-201612_large' % root_data_dir
+result_file = '%s/result_gr2_201501-201612_large.nc' % root_data_dir
+figure_files = ''  # '%s/gr2_MSLP_only_{:0>2d}_{:s}.pdf' % root_data_dir
 
 # Model parameters
 forecast_hours = [0, 12, 24]
 convolved = False
 impute_missing = True
-ensemble_type = NCARArray
+ensemble_type = GR2Array
 val = 'random'
 val_size = 46
 
@@ -50,36 +50,36 @@ random.seed(0)
 calculate = False
 
 # Optionally predict for only a subset of variables. Must use integer index as a list, or 'all'
-variables = 'all'
+variables = [1]
 
 # Predict with model spatial fields only, and no observational errors as inputs
 model_fields_only = False
 
 # Ensemble data parameters; used for plotting the ensemble results
-start_init_date = datetime(2015, 4, 21)
-end_init_date = datetime(2015, 5, 31)
+start_init_date = datetime(2015, 1, 1)
+end_init_date = datetime(2015, 4, 1)
 forecast_hour = 24
 
 # Grid bounding box
-lat_0 = 28.
-lat_1 = 40.
-lon_0 = -100.
-lon_1 = -78.
+lat_0 = 25.
+lat_1 = 45.
+lon_0 = -105.
+lon_1 = -75.
 
 # Option to do plotting. Plots with errors are only available for non-convolved models.
-plotting = True
-num_plots = 3
+plotting = False
+num_plots = 10
 plot_member = 1
-plot_variable = 'TMP2'
+plot_variable = 'Z500'
 add_slp_contour = True
 plot_error_variable = 0
 e_scale = 0.01
-title = '%s MSLP 24-hour error from %s'
+title = '%s MSLP error (%s)'
 plot_kwargs = {
-    'colorbar_label': '%s (K)' % plot_variable,
+    'colorbar_label': '%s (m)' % plot_variable,
     'plot_type': 'pcolormesh',
     'plot_kwargs': {
-        'caxis': np.arange(250, 310, 2),
+        'caxis': np.arange(5100, 5700, 60),
         'extend': 'both',
         'alpha': 0.5
     }
@@ -118,8 +118,7 @@ if plotting:
     ensemble = ensemble_type(root_directory=root_ensemble_dir)
     ensemble.set_init_dates(init_dates)
     ensemble.forecast_hour_coord = forecast_hours
-    ensemble.open(coords=[], autoclose=True,
-                  chunks={'member': 10, 'time': 12, 'south_north': 100, 'west_east': 100})
+    ensemble.open(coords=[], autoclose=True,)
     lower_left_index = ensemble.closest_lat_lon(lat_0, lon_0)
     upper_right_index = ensemble.closest_lat_lon(lat_1, lon_1)
     y1, x1 = lower_left_index

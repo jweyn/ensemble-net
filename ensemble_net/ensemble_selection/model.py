@@ -17,7 +17,7 @@ import keras.layers
 import numpy as np
 import keras.models
 from keras.utils import multi_gpu_model
-from ..util import get_from_class, make_keras_picklable
+from .. import util
 from .verify import rank
 
 
@@ -67,12 +67,15 @@ class EnsembleSelector(object):
             if type(layer[2]) is not dict:
                 raise TypeError("the 'kwargs' element of layer %d must be a dict" % l)
         # Self-explanatory
-        make_keras_picklable()
+        util.make_keras_picklable()
         # Build a model, either on a single GPU or on a CPU to control multiple GPUs
         self.model = keras.models.Sequential()
         for l in range(len(layers)):
             layer = layers[l]
-            layer_class = get_from_class('keras.layers', layer[0])
+            try:
+                layer_class = util.get_from_class('keras.layers', layer[0])
+            except (ImportError, AttributeError):
+                layer_class = util.get_from_class('ensemble_net.util', layer[0])
             self.model.add(layer_class(*layer[1], **layer[2]))
         if gpus > 1:
             self.model = multi_gpu_model(self.model, gpus=gpus, cpu_relocation=True)
@@ -88,7 +91,7 @@ class EnsembleSelector(object):
         return a
 
     def scaler_fit(self, X, y, **kwargs):
-        scaler_class = get_from_class('sklearn.preprocessing', self.scaler_type)
+        scaler_class = util.get_from_class('sklearn.preprocessing', self.scaler_type)
         self.scaler = scaler_class(**kwargs)
         self.scaler_y = scaler_class(**kwargs)
         self.scaler.fit(self._reshape(X))
@@ -109,7 +112,7 @@ class EnsembleSelector(object):
             return X_transform.reshape(X_shape)
 
     def imputer_fit(self, X, y):
-        imputer_class = get_from_class('sklearn.preprocessing', 'Imputer')
+        imputer_class = util.get_from_class('sklearn.preprocessing', 'Imputer')
         self.imputer = imputer_class(missing_values=np.nan, strategy="mean", axis=0, copy=False)
         self.imputer_y = imputer_class(missing_values=np.nan, strategy="mean", axis=0, copy=False)
         self.imputer.fit(self._reshape(X))
