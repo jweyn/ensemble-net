@@ -10,7 +10,7 @@ Retrieves observation data, calculates the oracle for mean squared error, and pl
 NCAR ensemble forecast at individual stations.
 """
 
-from ensemble_net.data_tools import NCARArray, MesoWest
+from ensemble_net.data_tools import NCARArray, MesoWest, GR2Array
 from ensemble_net.util import date_to_meso_date
 from ensemble_net.verify import ae_meso
 from ensemble_net.plot import plot_basemap
@@ -18,46 +18,55 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import xarray as xr
+import os
 from datetime import datetime, timedelta
 
 
 # Ensemble data parameters
 start_init_date = datetime(2016, 4, 1)
-end_init_date = datetime(2016, 4, 30)
+end_init_date = datetime(2016, 6, 30)
 pd_date_range = pd.date_range(start=start_init_date, end=end_init_date, freq='D')
 init_dates = list(pd_date_range.to_pydatetime())
-forecast_hours = list(range(0, 49, 12))
-members = list(range(1, 11))
-variables = ('TMP2', 'DPT2', 'MSLP')
+forecast_hours = [12, 24, 48]
+members = list(range(11))
+variables = ('TMP2', 'MSLP')
 
 # Subset with grid parameters
-lat_0 = 25.
+lat_0 = 28.
 lat_1 = 40.
 lon_0 = -100.
-lon_1 = -80.
+lon_1 = -78.
+
+# File paths
+root_directory = '/home/disk/wave/jweyn/Data/ensemble-net'
+meso_file = '%s/mesowest_201601-201612.pkl' % root_directory
+ae_meso_file = '%s/gr2_meso_error_201601-201612_48.nc' % root_directory
+oracle_output_file = './extras/oracle_gr2_201604-201606.nc'
 
 # Load NCAR Ensemble data
-ensemble = NCARArray(root_directory='/Users/jweyn/Data/NCAR_Ensemble',)
+ensemble = GR2Array(root_directory='/home/disk/wave2/jweyn/Data/GEFSR2',)
 ensemble.set_init_dates(init_dates)
 ensemble.forecast_hour_coord = forecast_hours  # Not good practice, but an override removes unnecessary time indices
 # ensemble.retrieve(init_dates, forecast_hours, members, get_ncar_netcdf=False, verbose=True)
 # ensemble.write(variables, forecast_hours=forecast_hours, members=members, use_ncar_netcdf=False, verbose=True)
-ensemble.open(coords=[], autoclose=True,
-              chunks={'member': 10, 'time': 12, 'south_north': 100, 'west_east': 100})
+ensemble.open(autoclose=True)
 
 # Load observation data
 bbox = '%s,%s,%s,%s' % (lon_0, lat_0, lon_1, lat_1)
 meso_start_date = date_to_meso_date(start_init_date - timedelta(hours=1))
 meso_end_date = date_to_meso_date(end_init_date + timedelta(hours=max(forecast_hours)))
-meso = MesoWest(token='038cd42021bc46faa8d66fd59a8b72ab')
+meso = MesoWest(token='')
 meso.load_metadata(bbox=bbox, network='1')
-meso.load(meso_start_date, meso_end_date, chunks='day', file='mesowest-201604.pkl', verbose=True,
+meso.load(meso_start_date, meso_end_date, chunks='day', file=meso_file, verbose=True,
           bbox=bbox, network='1', vars=variables, units='temp|K', hfmetars='0')
 
 # Get the errors
-error_ds = ae_meso(ensemble, meso)
-# error_ds.to_netcdf('extras/mesowest-error-201604.nc')
-# error_ds = xr.open_dataset('extras/mesowest-error-201604.nc')
+if os.path.isfile(ae_meso_file):
+    error_ds = xr.open_dataset(ae_meso_file)
+    error_ds.load()
+else:
+    error_ds = ae_meso(ensemble, meso)
+    error_ds.to_netcdf(ae_meso_file)
 
 # For each init and forecast hour, find the station-averaged MSE for each ensemble member (and the ensemble mean)
 ds_fhour = list(error_ds.variables['fhour'].values)
@@ -95,7 +104,7 @@ oracle = xr.Dataset({
     'bbox': bbox
 })
 
-oracle.to_netcdf('./oracle_mesowest.nc', format='NETCDF4')
+oracle.to_netcdf(oracle_output_file, format='NETCDF4')
 
 
 # Do a sample colored scatter plot
@@ -104,7 +113,7 @@ variable = 'TMP2'
 init_date = init_dates[0]
 time = init_date + timedelta(hours=24)
 stations = list(error_ds.data_vars.keys())
-errors = np.array([error_ds[s].sel(init_date=init_date, time=time, variable=variable) for s in stations])[:, member]
+errors = np.array([error_ds[s].sel(time=init_date, fhour=24, variable=variable) for s in stations])[:, member]
 lats = meso.lat(stations)
 lons = meso.lon(stations)
 ensemble.generate_basemap(lat_0, lon_0, lat_1, lon_1)

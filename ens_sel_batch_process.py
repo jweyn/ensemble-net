@@ -153,6 +153,7 @@ for date in dates:
 print('Loading or generating ae_meso data...')
 if load_existing_data:
     error_ds = xr.open_dataset(ae_meso_file)
+    ensemble.set_init_dates([dates[0]])
     ensemble.open()
 else:
     # Load observation data
@@ -179,8 +180,7 @@ else:
         meso.trim_stations(0.01)
     # Reload ensemble with all data
     ensemble.set_init_dates(dates)
-    ensemble.open(decode_times=False, autoclose=True,
-                  chunks={'member': 10, 'time': 12, 'lat': 100, 'lon': 100})
+    ensemble.open(decode_times=False, autoclose=True)
     error_ds = ae_meso(ensemble, meso)
     error_ds.to_netcdf(ae_meso_file)
 
@@ -207,6 +207,7 @@ else:
                                                                            convolution_agg=convolution_agg,
                                                                            missing_tolerance=mt, verbose=True,
                                                                            return_stations=True)
+ensemble.close()
 
 # Targets are the final time step in the error predictors. Faster to do it this way than with separate calls to the
 # predictors_from_ae_meso method for predictor and target data.

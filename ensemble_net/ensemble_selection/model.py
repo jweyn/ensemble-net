@@ -16,7 +16,11 @@ import keras
 import keras.layers
 import numpy as np
 import keras.models
-from keras.utils import multi_gpu_model
+from keras.utils import multi_gpu_model, Sequence
+
+from .preprocessing import convert_ensemble_predictors_to_samples, convert_ae_meso_predictors_to_samples, \
+    combine_predictors
+from ..nowcast.preprocessing import delete_nan_samples
 from .. import util
 from .verify import rank
 
@@ -35,6 +39,7 @@ class EnsembleSelector(object):
         self.imputer_y = None
         self.model = None
         self.is_parallel = False
+        self.is_init_fit = False
 
     def build_model(self, layers=(), gpus=1, **compile_kwargs):
         """
@@ -141,6 +146,7 @@ class EnsembleSelector(object):
             self.imputer_fit(predictors, targets)
             predictors, targets = self.imputer_transform(predictors, y=targets)
         self.scaler_fit(predictors, targets)
+        self.is_init_fit = True
 
     def fit(self, predictors, targets, initialize=True, **kwargs):
         """
@@ -168,6 +174,20 @@ class EnsembleSelector(object):
                                                                                 targets_test_scaled)
             kwargs['validation_data'] = (predictors_test_scaled, targets_test_scaled)
         self.model.fit(predictors_scaled, targets_scaled, **kwargs)
+
+    def fit_generator(self, generator, **kwargs):
+        """
+        Fit the EnsembleSelector model using a generator.
+
+        :param generator: a generator for producing batches of data (see Keras docs)
+        :param kwargs: passed to the model's fit_generator() method
+        :return:
+        """
+        # If generator is a DataGenerator below, check that we have called init_fit
+        if isinstance(generator, DataGenerator):
+            if not self.is_init_fit:
+                raise AttributeError('EnsembleSelector has not been initialized for fitting with init_fit()')
+        self.model.fit_generator(generator, **kwargs)
 
     def predict(self, predictors, **kwargs):
         """
@@ -247,3 +267,92 @@ class EnsembleSelector(object):
         agg_score = agg(predicted, axis=1)
         agg_rank = rank(agg_score)
         return np.vstack((agg_score, agg_rank)).T
+
+
+class DataGenerator(Sequence):
+    """
+    Class used to generate training data on the fly from a loaded DataSet of predictor data. Depends on the structure
+    of the EnsembleSelector to do scaling and imputing of data.
+    """
+
+    def __init__(self, selector, ds, batch_size=32, convolved=False, shuffle=False, model_fields_only=False):
+        self.selector = selector
+        self.ds = ds
+        self.batch_size = batch_size
+        self.convolved = convolved
+        self.shuffle = shuffle
+        self.model_fields_only = model_fields_only
+        self.impute_missing = self.selector.impute
+        self.indices = []
+
+        self.num_dates = self.ds.dims['init_date']
+        if self.convolved:
+            self.num_samples = self.ds.dims['init_date'] * self.ds.dims['member'] * self.ds.dims['convolution']
+        else:
+            self.num_samples = self.ds.dims['init_date'] * self.ds.dims['member']
+
+        # We also need an Imputer and Scaler
+        self.on_epoch_end()
+
+    def get_spatial_shape(self):
+        """
+        :return: the shape of the spatial component of ensemble predictors
+        """
+        forecast_predictors, fpi = convert_ensemble_predictors_to_samples(
+            self.ds['ENS_PRED'].isel(init_date=[0]).values, convolved=self.convolved)
+        return forecast_predictors.shape[1:]
+
+    def on_epoch_end(self):
+        self.indices = np.arange(self.num_dates)
+        if self.shuffle:
+            np.random.shuffle(self.indices)
+
+    def generate_data(self, days, scale_and_impute=True):
+        if len(days) > 0:
+            ds = self.ds.isel(init_date=days)
+        else:
+            ds = self.ds.isel(init_date=slice(None))
+        ds.load()
+        forecast_predictors, fpi = convert_ensemble_predictors_to_samples(ds['ENS_PRED'].values,
+                                                                          convolved=self.convolved)
+        ae_targets, eti = convert_ae_meso_predictors_to_samples(np.expand_dims(ds['AE_TAR'].values, 3),
+                                                                convolved=self.convolved)
+        if self.model_fields_only:
+            combined_predictors = combine_predictors(forecast_predictors)
+        else:
+            ae_predictors, epi = convert_ae_meso_predictors_to_samples(ds['AE_PRED'].values, convolved=self.convolved)
+            combined_predictors = combine_predictors(forecast_predictors, ae_predictors)
+        ds = None
+
+        # Remove samples with NaN
+        if self.impute_missing:
+            p, t = combined_predictors, ae_targets
+            if scale_and_impute:
+                p, t = self.selector.imputer_transform(p, t)
+                p, t = self.selector.scaler_transform(p, t)
+        else:
+            p, t = delete_nan_samples(combined_predictors, ae_targets)
+            if scale_and_impute:
+                p, t = self.selector.scaler_transform(p, t)
+
+        return p, t
+
+    def __len__(self):
+        """
+        :return: the number of batches per epoch
+        """
+        return int(np.floor(self.num_dates / self.batch_size))
+
+    def __getitem__(self, index):
+        """
+        Get one batch of data
+        :param index: index of batch
+        :return:
+        """
+        # Generate indexes of the batch
+        indexes = self.indices[index * self.batch_size:(index + 1) * self.batch_size]
+
+        # Generate data
+        X, y = self.generate_data(indexes)
+
+        return X, y

@@ -13,7 +13,6 @@ import pickle
 from collections import OrderedDict
 from ..data_tools import NCARArray
 from ..nowcast.preprocessing import train_data_from_pickle, train_data_to_pickle, delete_nan_samples
-from datetime import datetime, timedelta
 from numba import jit
 
 
