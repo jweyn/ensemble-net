@@ -20,6 +20,7 @@ from keras.legacy import interfaces
 from keras.utils import conv_utils
 from keras.engine.base_layer import InputSpec
 from keras.engine.base_layer import Layer
+from keras.callbacks import Callback
 from keras import backend as K
 from keras import activations, initializers, regularizers, constraints
 
@@ -99,7 +100,7 @@ def get_from_class(module_name, class_name):
     return class_obj
 
 
-def save_model(model, file_name):
+def save_model(model, file_name, history=None):
     """
     Saves a class instance with a 'model' attribute to disk. Creates two files: one pickle file containing no model
     saved as ${file_name}.pkl and one for the model saved as ${file_name}.keras. Use the `load_model()` method to load
@@ -107,6 +108,7 @@ def save_model(model, file_name):
 
     :param model: model instance (with a 'model' attribute) to save
     :param file_name: str: base name of save files
+    :param history: history from Keras fitting, or None
     :return:
     """
     model.model.save('%s.keras' % file_name)
@@ -114,6 +116,9 @@ def save_model(model, file_name):
     model_copy.model = None
     with open('%s.pkl' % file_name, 'wb') as f:
         pickle.dump(model_copy, f, protocol=pickle.HIGHEST_PROTOCOL)
+    if history is not None:
+        with open('%s.history' % file_name, 'wb') as f:
+            pickle.dump(history, f, protocol=pickle.HIGHEST_PROTOCOL)
 
 
 def load_model(file_name):
@@ -133,8 +138,26 @@ def load_model(file_name):
 
 
 # ==================================================================================================================== #
-# Custom Keras layers
+# Custom Keras classes
 # ==================================================================================================================== #
+
+class AdamLearningRateTracker(Callback):
+    def on_batch_end(self, batch, logs=None, beta_1=0.9, beta_2=0.999,):
+        optimizer = self.model.optimizer
+        it = K.cast(optimizer.iterations, K.floatx())
+        lr = K.eval(optimizer.lr * (1. / (1. + optimizer.decay * it)))
+        t = K.cast(optimizer.iterations, K.floatx()) + 1
+        lr_t = K.eval(lr * (K.sqrt(1. - K.pow(beta_2, t)) / (1. - K.pow(beta_1, t))))
+        print(' - LR: {:.6f}'.format(lr_t))
+
+
+class SGDLearningRateTracker(Callback):
+    def on_batch_end(self, batch, logs=None):
+        optimizer = self.model.optimizer
+        it = K.cast(optimizer.iterations, K.floatx())
+        lr = K.eval(optimizer.lr * (1. / (1. + optimizer.decay * it)))
+        print(' - LR: {:.6f}'.format(lr))
+
 
 class PartialConv2D(Layer):
     """
