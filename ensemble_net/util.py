@@ -118,7 +118,7 @@ def save_model(model, file_name, history=None):
         pickle.dump(model_copy, f, protocol=pickle.HIGHEST_PROTOCOL)
     if history is not None:
         with open('%s.history' % file_name, 'wb') as f:
-            pickle.dump(history, f, protocol=pickle.HIGHEST_PROTOCOL)
+            pickle.dump(history.history, f, protocol=pickle.HIGHEST_PROTOCOL)
 
 
 def load_model(file_name):
@@ -145,9 +145,11 @@ class AdamLearningRateTracker(Callback):
     def on_batch_end(self, batch, logs=None, beta_1=0.9, beta_2=0.999,):
         optimizer = self.model.optimizer
         it = K.cast(optimizer.iterations, K.floatx())
-        lr = K.eval(optimizer.lr * (1. / (1. + optimizer.decay * it)))
-        t = K.cast(optimizer.iterations, K.floatx()) + 1
-        lr_t = K.eval(lr * (K.sqrt(1. - K.pow(beta_2, t)) / (1. - K.pow(beta_1, t))))
+        lr = K.cast(optimizer.lr, K.floatx())
+        decay = K.cast(optimizer.decay, K.floatx())
+        t = K.eval(it + 1.)
+        new_lr = K.eval(lr * (1. / (1. + decay * it)))
+        lr_t = K.eval(new_lr * (K.sqrt(1. - K.pow(beta_2, t)) / (1. - K.pow(beta_1, t))))
         print(' - LR: {:.6f}'.format(lr_t))
 
 
@@ -155,8 +157,27 @@ class SGDLearningRateTracker(Callback):
     def on_batch_end(self, batch, logs=None):
         optimizer = self.model.optimizer
         it = K.cast(optimizer.iterations, K.floatx())
-        lr = K.eval(optimizer.lr * (1. / (1. + optimizer.decay * it)))
-        print(' - LR: {:.6f}'.format(lr))
+        lr = K.cast(optimizer.lr, K.floatx())
+        decay = K.cast(optimizer.decay, K.floatx())
+        new_lr = K.eval(lr * (1. / (1. + decay * it)))
+        print(' - LR: {:.6f}'.format(new_lr))
+
+
+class BatchHistory(Callback):
+    def on_train_begin(self, logs=None):
+        self.history = []
+        self.epoch = 0
+
+    def on_epoch_begin(self, epoch, logs=None):
+        self.history.append({})
+
+    def on_epoch_end(self, epoch, logs=None):
+        self.epoch += 1
+
+    def on_batch_end(self, batch, logs=None):
+        logs = logs or {}
+        for k, v in logs.items():
+            self.history[self.epoch].setdefault(k, []).append(v)
 
 
 class PartialConv2D(Layer):

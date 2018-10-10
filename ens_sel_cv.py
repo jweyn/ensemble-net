@@ -14,7 +14,7 @@ This script is currently useless because an HDF lock error occurs when trying to
 seems to have an issue with terminating child processes of fit_generator.
 """
 
-from ensemble_net.util import save_model, SGDLearningRateTracker
+from ensemble_net.util import save_model, SGDLearningRateTracker, BatchHistory
 from ensemble_net.ensemble_selection import preprocessing, verify
 from ensemble_net.ensemble_selection.model import EnsembleSelector, DataGenerator
 import numpy as np
@@ -24,16 +24,15 @@ import os
 import random
 from shutil import copyfile
 from keras.optimizers import SGD
-from keras.callbacks import TerminateOnNaN
+from keras.callbacks import TerminateOnNaN, History
 import keras.backend as K
-
 
 
 #%% User parameters
 
 # Paths to important files
 root_data_dir = '%s/Data/ensemble-net' % os.environ['WORKDIR']
-predictor_file = '%s/predictors_201504-201603_28N40N100W78W_x4_no_c_ST.nc' % root_data_dir
+predictor_file = '%s/predictors_201504-201603_28N40N100W78W_x4_no_c.nc' % root_data_dir
 model_file = '%s/selector_ncar_MSLP' % root_data_dir
 convolved = False
 
@@ -86,8 +85,8 @@ layers_2 = [
 # Seed the random validation set generator
 random.seed(0)
 
-# Print some results at the end
-print_results = True
+# Save history at each batch or each epoch
+save_batch_history = False
 
 # Iterate over configurations or hyper-parameters
 cv_parameters = {
@@ -205,17 +204,21 @@ for l_index, layers in enumerate(cv_parameters['structure']):
         # Train and evaluate the model
         print('Training the EnsembleSelector model...')
         start_time = time.time()
-        history = selector.fit_generator(generator, epochs=epochs, verbose=1, validation_data=(p_val, t_val),
-                                         use_multiprocessing=True,
-                                         callbacks=[TerminateOnNaN(), SGDLearningRateTracker()])
+        if save_batch_history:
+            history = BatchHistory()
+        else:
+            history = History()
+        selector.fit_generator(generator, epochs=epochs, verbose=1, validation_data=(p_val, t_val),
+                               use_multiprocessing=True,
+                               callbacks=[TerminateOnNaN(), SGDLearningRateTracker(), history])
 
         end_time = time.time()
 
         # Use model.evaluate() because p_val and t_val are already scaled
         score = selector.model.evaluate(p_val, t_val, verbose=0)
         print("\nTrain time -- %s seconds --" % (end_time - start_time))
-        print('Test loss:', score[0])
-        print('Test mean absolute error:', score[1])
+        print('Val loss:', score[0])
+        print('Val mean absolute error:', score[1])
 
         # Save the model, if requested
         if model_file is not None:
@@ -231,6 +234,9 @@ for l_index, layers in enumerate(cv_parameters['structure']):
         val_generator.ds.close()
         val_generator = None
         selector.model = None
+        predictor_ds.close()
+        predictor_ds = None
+        predictor_ds = xr.open_dataset(predictor_file, mask_and_scale=True)
         generator = DataGenerator(selector, predictor_ds.isel(init_date=train_set), batch_size,
                                   convolved=convolved, model_fields_only=model_fields_only)
         val_generator = DataGenerator(selector, predictor_ds.isel(init_date=val_set), batch_size,

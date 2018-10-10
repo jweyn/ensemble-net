@@ -322,6 +322,7 @@ class DataGenerator(Sequence):
         else:
             ae_predictors, epi = convert_ae_meso_predictors_to_samples(ds['AE_PRED'].values, convolved=self.convolved)
             combined_predictors = combine_predictors(forecast_predictors, ae_predictors)
+        ds.close()
         ds = None
 
         # Remove samples with NaN
