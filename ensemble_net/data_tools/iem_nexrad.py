@@ -17,6 +17,7 @@ import xarray as xr
 import netCDF4 as nc
 from requests import session
 from datetime import datetime
+from scipy.interpolate import griddata
 
 
 # ==================================================================================================================== #
@@ -100,32 +101,53 @@ class IEMRadar(object):
         else:
             self._remote_url = '%s/%s' % (iowa_url, image_file_format.format(composite_type))
             self._local_path = '%s/%s' % (self._root_directory, local_image_file_format.format(composite_type))
+        self.times = []
         self._time_coord = []
         self.Dataset = None
+        self._lat_array = None
+        self._lon_array = None
+
+    def set_times(self, times):
+        """
+        Set the object's times attribute to a list of datetime objects.
+
+        :param times: list: datetime times
+        :return:
+        """
+        self.times = list(times)
+        self._time_coord = [int((d - datetime(1970, 1, 1)).total_seconds()) for d in times]
 
     @property
     def lat(self):
+        if self._lat_array is not None:
+            return self._lat_array
         try:
             lat = self.Dataset.variables['lat'][:]
             if len(lat.shape) > 2:
-                return lat[0, ...].values
+                self._lat_array = lat[0, ...].values
+                return self._lat_array
             else:
-                return lat.values
+                self._lat_array = lat.values
+                return self._lat_array
         except AttributeError:
-            raise AttributeError('Call to lat method is only valid after data are loaded.')
+            raise AttributeError('Call to lat method is only valid after data are opened.')
         except KeyError:
             return
 
     @property
     def lon(self):
+        if self._lon_array is not None:
+            return self._lon_array
         try:
             lon = self.Dataset.variables['lon'][:]
             if len(lon.shape) > 2:
-                return lon[0, ...].values
+                self._lon_array = lon[0, ...].values
+                return self._lon_array
             else:
-                return lon.values
+                self._lon_array = lon.values
+                return self._lon_array
         except AttributeError:
-            raise AttributeError('Call to lon method is only valid after data are loaded.')
+            raise AttributeError('Call to lon method is only valid after data are opened.')
         except KeyError:
             return
 
@@ -150,6 +172,18 @@ class IEMRadar(object):
         """
         return np.argmin(np.abs(self.lat - lat)), np.argmin(np.abs(self.lon - lon))
 
+    def get_xy_bounds_from_latlon(self, lonlim, latlim):
+        """
+        Return an xlim and ylim box in coordinate indices for the longitude and latitude bound limits.
+
+        :param lonlim: len-2 tuple: longitude limits
+        :param latlim: len-2 tuple: latitude limits
+        :return:
+        """
+        y1, x1 = self.closest_lat_lon(np.min(latlim), np.min(lonlim))
+        y2, x2 = self.closest_lat_lon(np.max(latlim), np.max(lonlim))
+        return (y1, y2), (x1, x2)
+
     def retrieve(self, date_times, replace_existing=False, verbose=True):
         """
         Retrieve the appropriate remote files for the specified iterable of date_times.
@@ -159,6 +193,7 @@ class IEMRadar(object):
         :param verbose: bool: print progress statements
         :return:
         """
+        self.set_times(date_times)
         for date_time in date_times:
             remote_file = datetime.strftime(date_time, self._remote_url)
             local_file = datetime.strftime(date_time, self._local_path)
@@ -175,10 +210,22 @@ class IEMRadar(object):
             with session() as c:
                 if verbose:
                     print('Retrieving %s' % remote_file)
-                response = c.get(remote_file, verify=False)
-                with open(local_file, 'wb') as fd:
-                    for chunk in response.iter_content(chunk_size=128):
-                        fd.write(chunk)
+                try:
+                    response = c.get(remote_file, verify=False)
+                    with open(local_file, 'wb') as fd:
+                        for chunk in response.iter_content(chunk_size=128):
+                            fd.write(chunk)
+                except BaseException as e:
+                    if verbose:
+                        print('warning: failed to download %s, retrying' % remote_file)
+                        try:
+                            response = c.get(remote_file, verify=False)
+                            with open(local_file, 'wb') as fd:
+                                for chunk in response.iter_content(chunk_size=128):
+                                    fd.write(chunk)
+                        except BaseException as e:
+                            print('warning: failed to download %s' % remote_file)
+                            print('* Reason: "%s"' % str(e))
 
     def write(self, date_times, overwrite_existing=False, verbose=True):
         """
@@ -190,7 +237,7 @@ class IEMRadar(object):
         :param verbose: bool: extra print statements
         :return:
         """
-        self._time_coord = [int((d - datetime(1970, 1, 1)).total_seconds()) for d in date_times]
+        self.set_times(date_times)
         if self._composite_type == 'n0q' and min(date_times) < n0q_new_start_date < max(date_times):
             print('Warning: some requested dates are before the new resolution changes from %s'
                   'while others are after; will discard 200 points on east and south edges.' % n0q_new_start_date)
@@ -242,7 +289,7 @@ class IEMRadar(object):
 
         # Create the reflectivity variable
         nc_var = nc_fid.createVariable('composite_%s' % self._composite_type, np.float32, ('time', 'lat', 'lon'),
-                                       fill_value=1.e20, zlib=True)
+                                       zlib=True)
         nc_var.setncatts({
             'long_name': 'Base reflectivity',
             'units': 'dBZ',
@@ -287,3 +334,107 @@ class IEMRadar(object):
         """
         if self.Dataset is not None:
             self.Dataset.close()
+
+    def interpolate(self, lat, lon, times=None, padding=1., method='nearest', do_pmm=False, output_file=None,
+                    verbose=False):
+        """
+
+        :param lat: 2-d array: latitude values to interpolate to
+        :param lon: 2-d array: longitude values to interpolate to
+        :param times: list: datetime times to process
+        :param padding: float: in degrees, the number of degrees in each cardinal direction to add to the radar domain,
+            used to compensate for the curvature of the ensemble projection
+        :param method: str: method of interpolation for scipy.interpolate.griddata ('linear', 'nearest', or 'cubic')
+        :param do_pmm: bool: if True, uses a probability matching to retain extreme values
+        :param output_file: str or None: if None, does the operations in-memory and returns an xarray DataArray.
+            Otherwise, writes to the netCDF file and returns a netCDF file handle.
+        :param verbose: bool: print progress statements
+        :return: dask array: interpolated radar data
+        """
+        if self.Dataset is None:
+            raise ValueError('data must be opened to interpolate')
+        if times is not None:
+            self.set_times(times)
+        if len(self.times) < 1:
+            raise ValueError('no times loaded in dataset or provided as keyword arg')
+        times = self._time_coord
+        if lat.shape != lon.shape:
+            raise ValueError("shapes of 'lat' and 'lon' must match")
+
+        # Get the radar array bounds
+        y1r, x1r = self.closest_lat_lon(np.min(lat) - padding, np.min(lon) - padding)
+        y2r, x2r = self.closest_lat_lon(np.max(lat) + padding, np.max(lon) + padding)
+        lon_subset_r, lat_subset_r = np.meshgrid(self.lon[x1r:x2r], self.lat[y1r:y2r])
+        radar_ds = self.Dataset.isel(lat=slice(y1r, y2r), lon=slice(x1r, x2r))
+
+        if output_file is not None:
+            nc_fid = nc.Dataset(output_file, 'w', format='NETCDF4')
+            if verbose:
+                print('Creating coordinate dimensions for file %s' % self.file_name)
+            nc_fid.description = ("Interpolated Iowa Environmental Mesonet composite '%s' reflectivity" %
+                                  self._composite_type)
+            nc_fid.createDimension('time', 0)
+            nc_fid.createDimension('south_north', lat.shape[0])
+            nc_fid.createDimension('west_east', lat.shape[1])
+
+            # Create time variable
+            nc_var = nc_fid.createVariable('time', np.int64, 'time', zlib=True)
+            nc_var.setncatts({
+                'long_name': 'Time',
+                'units': 'seconds since 1970-01-01 00:00'
+            })
+            nc_fid.variables['time'][:] = self._time_coord
+
+            # Create the latitude and longitude variables
+            nc_var = nc_fid.createVariable('latitude', np.float32, ('south_north', 'west_east'), zlib=True)
+            nc_var.setncatts({
+                'long_name': 'Latitude',
+                'units': 'degrees_north',
+                '_FillValue': fill_value
+            })
+            nc_var = nc_fid.createVariable('longitude', np.float32, ('south_north', 'west_east'), zlib=True)
+            nc_var.setncatts({
+                'long_name': 'Longitude',
+                'units': 'degrees_east',
+                '_FillValue': fill_value
+            })
+
+            # Create the reflectivity variable
+            nc_var = nc_fid.createVariable('composite_%s' % self._composite_type, np.float32,
+                                           ('time', 'lat', 'lon'), zlib=True)
+            nc_var.setncatts({
+                'long_name': 'Base reflectivity',
+                'units': 'dBZ',
+                'coordinates': 'longitude latitude',
+                '_FillValue': fill_value
+            })
+
+            # Target array for writing
+            target = nc_fid.variables['composite_%s' % self._composite_type]
+        else:
+            data = np.zeros((len(times),) + lat.shape, dtype=np.float32)
+            ds = xr.Dataset({'composite_%s' % self._composite_type: (['time', 'south_north', 'west_east'], data)},
+                            coords={
+                                'latitude': (['south_north', 'west_east'], lat),
+                                'longitude': (['south_north', 'west_east'], lon),
+                                'time': self.times
+                            })
+            target = ds.variables['composite_%s' % self._composite_type]
+
+        for t, time in enumerate(times):
+            if verbose:
+                print('IEMRadar.interpolate: time %d of %d (%s)' % (t+1, len(times), time))
+            # radar_time_index = list(self.time).index(np.datetime64(self.times[t]))
+            radar_array = radar_ds.sel(time=np.datetime64(self.times[t])).variables['composite_n0q'].values
+            radar_interpolated = griddata(np.vstack((lat_subset_r.flatten(), lon_subset_r.flatten())).T,
+                                          radar_array.flatten(),
+                                          np.vstack((lat.flatten(), lon.flatten())).T,
+                                          method=method)
+            radar_interpolated = radar_interpolated.reshape(lat.shape)
+
+            target[t, ...] = radar_interpolated
+
+        if output_file is not None:
+            return nc_fid
+        else:
+            return ds

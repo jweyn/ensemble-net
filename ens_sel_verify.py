@@ -30,10 +30,10 @@ from datetime import datetime
 # Paths to important files
 root_ensemble_dir = '/home/disk/wave2/jweyn/Data/GEFSR2'
 root_data_dir = '%s/Data/ensemble-net' % os.environ['WORKDIR']
-predictor_file = '%s/predictors_gr2_201501-201612_25N45N105W75W_no_c.nc' % root_data_dir
-model_file = '%s/selector_gr2_201501-201612_large' % root_data_dir
-result_file = '%s/result_gr2_201501-201612_large.nc' % root_data_dir
-figure_files = ''  # '%s/gr2_MSLP_only_{:0>2d}_{:s}.pdf' % root_data_dir
+predictor_file = '%s/predictors_gr2_201501-201712_28N40N100W78W_no_c.nc' % root_data_dir
+model_file = '%s/selector_gr2_201501-201712_no_c_PC' % root_data_dir
+result_file = '%s/result_gr2_201501-201712_PC_MSLP.nc' % root_data_dir
+figure_files = ''  # '%s/gr2_large_48_MSLP_only_{:0>2d}_{:s}.pdf' % root_data_dir
 
 # Model parameters
 forecast_hours = [0, 12, 24]
@@ -41,7 +41,7 @@ convolved = False
 impute_missing = True
 ensemble_type = GR2Array
 val = 'random'
-val_size = 46
+val_size = 196
 
 # Seed the random validation set generator
 random.seed(0)
@@ -50,7 +50,7 @@ random.seed(0)
 calculate = False
 
 # Optionally predict for only a subset of variables. Must use integer index as a list, or 'all'
-variables = [1]
+variables = 'all'
 
 # Predict with model spatial fields only, and no observational errors as inputs
 model_fields_only = False
@@ -72,7 +72,7 @@ num_plots = 10
 plot_member = 1
 plot_variable = 'Z500'
 add_slp_contour = True
-plot_error_variable = 0
+plot_error_variable = 1
 e_scale = 0.01
 title = '%s MSLP error (%s)'
 plot_kwargs = {

@@ -96,6 +96,7 @@ class NCARArray(object):
         # Known universal dimension sizes for the dataset
         self._ny = 985
         self._nx = 1580
+        self.inverse_lat = False
         # Data
         self.Dataset = None
         self.basemap = None
@@ -190,6 +191,20 @@ class NCARArray(object):
         if np.min(distance) > 1.:
             raise ValueError('no latitude/longitude points within 1 degree of requested lat/lon!')
         return np.unravel_index(np.argmin(distance, axis=None), distance.shape)
+
+    def get_xy_bounds_from_latlon(self, latlim, lonlim):
+        """
+        Return an xlim and ylim box in coordinate indices for the longitude and latitude bound limits.
+
+        :param lonlim: len-2 tuple: longitude limits
+        :param latlim: len-2 tuple: latitude limits
+        :return:
+        """
+        y1, x1 = self.closest_lat_lon(np.min(latlim), np.min(lonlim))
+        y2, x2 = self.closest_lat_lon(np.max(latlim), np.max(lonlim))
+        if self.inverse_lat:
+            y1, y2 = (y2, y1)
+        return (y1, y2), (x1, x2)
 
     def retrieve(self, init_dates, forecast_hours, members, get_ncar_netcdf=False, verbose=False):
         """

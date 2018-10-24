@@ -11,8 +11,8 @@ from datetime import datetime, timedelta
 
 gr2 = GR2Array(root_directory='/home/disk/wave2/jweyn/Data/GEFSR2')
 
-start_init_date = datetime(2017, 6, 1)
-end_init_date = datetime(2017, 10, 31)
+start_init_date = datetime(2014, 1, 1)
+end_init_date = datetime(2014, 12, 31)
 init_dates = list(pd.date_range(start=start_init_date, end=end_init_date, freq='D').to_pydatetime())
 forecast_hours = list(range(0, 49, 3))
 members = list(range(0, 11))
@@ -22,8 +22,8 @@ gr2.set_init_dates(init_dates)
 # gr2.retrieve(init_dates, variables, members, verbose=True)
 gr2.forecast_hour_coord = forecast_hours
 gr2.write(variables, members=members, forecast_hours='all', verbose=True)
-# gr2.open(autoclose=True)
-#
+gr2.open(autoclose=True)
+
 # plot_variable = 'TMP2'
 # plot_f_hour = forecast_hours[-1]
 # member = members[0]

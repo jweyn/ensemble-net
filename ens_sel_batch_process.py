@@ -25,22 +25,23 @@ warnings.filterwarnings("ignore")
 
 
 # Ensemble data parameters
-start_init_date = datetime(2015, 1, 1)
-end_init_date = datetime(2015, 12, 31)
-forecast_hours = list(range(0, 25, 12))
-members = list(range(0, 11))
+start_init_date = datetime(2016, 4, 1)
+end_init_date = datetime(2017, 3, 31)
+forecast_hours = [0, 12, 24]
+members = list(range(1, 11))
 retrieve_forecast_variables = ('REFC', 'REFD_MAX', 'TMP2', 'DPT2', 'MSLP', 'UGRD', 'VGRD', 'CAPE', 'CIN', 'LFTX',
                                'UBSHR6', 'VBSHR6', 'HLCY1')
-forecast_variables = ('TMP2', 'SPH2', 'MSLP', 'CAPE', 'Z500', 'T850', 'W850', 'PWAT')
-verification_variables = ('TMP2', 'MSLP')
+# forecast_variables = ('TMP2', 'SPH2', 'MSLP', 'CAPE', 'Z500', 'T850', 'W850', 'PWAT')
+forecast_variables = ('TMP2', 'DPT2', 'MSLP', 'CAPE')
+verification_variables = ('TMP2', 'DPT2', 'MSLP')
 
 # Subset with grid parameters
 lat_0 = 28.
 lat_1 = 40.
 lon_0 = -100.
 lon_1 = -78.
-grid_factor = 1
-num_members = 11
+grid_factor = 4
+num_members = 10
 
 # When formatting data for ingestion into the learning algorithm, we can use convolutions over the spatial data to
 # increase the number of training samples at the expense of training features. Set 'convolution' to None to disable
@@ -56,10 +57,10 @@ retrieve_forecast_data = False
 load_existing_data = True
 # File paths, beginning with the directory in which to place the data
 root_data_dir = '/home/disk/wave/jweyn/Data/ensemble-net/'
-meso_file = '%s/mesowest_201501-201512.pkl' % root_data_dir
-copy_stations_file = None  # '%s/mesowest-201504-201603.nc' % root_data_dir
-ae_meso_file = '%s/gr2_meso_error_201501-201512.nc' % root_data_dir
-predictor_file = '%s/predictors_gr2_201501-201512_28N40N100W78W_no_c.nc' % root_data_dir
+meso_file = '%s/mesowest_201604-201703.pkl' % root_data_dir
+copy_stations_file = None  # '%s/mesowest_201504-201603.pkl' % root_data_dir
+ae_meso_file = '%s/meso_error_201604-201703.nc' % root_data_dir
+predictor_file = '%s/predictors_201604-201703_28N40N100W78W_x4_no_c.nc' % root_data_dir
 
 
 # Generate monthly batches of dates
@@ -70,6 +71,19 @@ month_list = []
 for m in range(len(unique_months)):
     month_list.append(list(dates[months == unique_months[m]].to_pydatetime()))
 dates = list(dates.to_pydatetime())
+
+
+# Load NCAR Ensemble data
+print('Loading NCAR ensemble data...')
+ensemble = NCARArray(root_directory='/home/disk/wave2/jweyn/Data/NCAR_Ensemble',)
+ensemble.set_init_dates(dates)
+ensemble.forecast_hour_coord = forecast_hours  # Not good practice, but an override removes unnecessary time indices
+# Retrieve forecast data by monthly batches, deleting the raw files along the way
+if retrieve_forecast_data:
+    for batch in month_list:
+        ensemble.retrieve(batch, forecast_hours, members, verbose=True)
+        ensemble.write(retrieve_forecast_variables, init_dates=batch, forecast_hours=forecast_hours, members=members,
+                       omit_existing=True, verbose=True, delete_raw_files=False)
 
 
 # netCDF fill value
@@ -86,19 +100,6 @@ ncf.variables['init_date'][:] = nc.date2num(dates, nc_time_units)
 get_dims = True
 
 
-# Load NCAR Ensemble data
-print('Loading NCAR ensemble data...')
-ensemble = GR2Array(root_directory='/home/disk/wave2/jweyn/Data/GEFSR2')
-ensemble.set_init_dates(dates)
-ensemble.forecast_hour_coord = forecast_hours  # Not good practice, but an override removes unnecessary time indices
-# Retrieve forecast data by monthly batches, deleting the raw files along the way
-if retrieve_forecast_data:
-    for batch in month_list:
-        ensemble.retrieve(batch, forecast_hours, members, verbose=True)
-        ensemble.write(retrieve_forecast_variables, init_dates=batch, forecast_hours=forecast_hours, members=members,
-                       omit_existing=True, verbose=True, delete_raw_files=True)
-
-
 # Generate the predictors from the ensemble, iterating over init_dates
 convolved = (convolution is not None)
 print('Initiating generation of predictors...')
@@ -107,8 +108,7 @@ for date in dates:
     idate += 1
     print('Ensemble predictors for %s' % date)
     ensemble.set_init_dates([date])
-    ensemble.open(coords=[], autoclose=True,
-                  chunks={'member': 10, 'time': 12, 'lat': 100, 'lon': 100})
+    ensemble.open(coords=[], autoclose=True,)
     raw_forecast_predictors = preprocessing.predictors_from_ensemble(ensemble, (lon_0, lon_1), (lat_0, lat_1),
                                                                      forecast_hours=tuple(forecast_hours),
                                                                      variables=forecast_variables,

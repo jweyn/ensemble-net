@@ -291,7 +291,6 @@ class DataGenerator(Sequence):
         else:
             self.num_samples = self.ds.dims['init_date'] * self.ds.dims['member']
 
-        # We also need an Imputer and Scaler
         self.on_epoch_end()
 
     def get_spatial_shape(self):
