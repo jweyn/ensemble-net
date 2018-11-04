@@ -226,15 +226,18 @@ def reshape_keras_targets(targets, omit_edge_points=0):
     return targets, target_shape[1:], num_outputs
 
 
-def delete_nan_samples(predictors, targets, large_fill_value=True):
+def delete_nan_samples(predictors, targets, large_fill_value=True, threshold=None):
     """
     Delete any samples from the predictor and target numpy arrays and return new, reduced versions.
 
     :param predictors: ndarray, shape [num_samples,...]: predictor data
     :param targets: ndarray, shape [num_samples,...]: target data
     :param large_fill_value: bool: if True, treats very large values (> 1e30) as NaNs
+    :param threshold: float 0-1: if not None, then removes any samples with a fraction of NaN larger than this
     :return: predictors, targets: ndarrays with samples removed
     """
+    if threshold is not None and not (0 <= threshold <= 1):
+        raise ValueError("'threshold' must be between 0 and 1")
     if large_fill_value:
         predictors[(predictors > 1.e30) | (predictors < -1.e30)] = np.nan
         targets[(targets > 1.e30) | (targets < -1.e30)] = np.nan
@@ -242,8 +245,12 @@ def delete_nan_samples(predictors, targets, large_fill_value=True):
     t_shape = targets.shape
     predictors = predictors.reshape((p_shape[0], -1))
     targets = targets.reshape((t_shape[0], -1))
-    p_ind = list(np.where(np.isnan(predictors))[0])
-    t_ind = list(np.where(np.isnan(targets))[0])
+    if threshold is None:
+        p_ind = list(np.where(np.isnan(predictors))[0])
+        t_ind = list(np.where(np.isnan(targets))[0])
+    else:
+        p_ind = list(np.where(np.mean(np.isnan(predictors), axis=1) >= threshold)[0])
+        t_ind = list(np.where(np.mean(np.isnan(targets), axis=1) >= threshold)[0])
     bad_ind = list(set(p_ind + t_ind))
     predictors = np.delete(predictors, bad_ind, axis=0)
     targets = np.delete(targets, bad_ind, axis=0)

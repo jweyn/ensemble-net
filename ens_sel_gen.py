@@ -28,9 +28,9 @@ from keras.callbacks import TerminateOnNaN
 
 # Paths to important files
 root_data_dir = '%s/Data/ensemble-net' % os.environ['WORKDIR']
-predictor_file = '%s/predictors_201504-201603_28N40N100W78W_x4_no_c_ST.nc' % root_data_dir
-model_file = '%s/selector_ncar_MSLP' % root_data_dir
-result_file = '%s/result_ncar_MSLP.nc' % root_data_dir
+predictor_file = '%s/predictors_201504-201703_28N40N100W78W_x4_no_c_ST.nc' % root_data_dir
+model_file = '%s/selector_ncar_2yr_MSLP' % root_data_dir
+result_file = '%s/result_ncar_2yr_MSLP.nc' % root_data_dir
 convolved = False
 
 # Copy file to scratch space

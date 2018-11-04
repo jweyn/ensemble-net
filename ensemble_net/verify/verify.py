@@ -56,7 +56,10 @@ def ae_meso(ensemble, meso, variables='all', stations='all', verbose=True):
 
     num_stations = len(stations)
     station_count = 0
-    new_ds = ensemble.Dataset.sel(fhour=forecast_hours)
+    try:
+        new_ds = ensemble.Dataset.sel(fhour=forecast_hours)
+    except (IndexError, ValueError):
+        new_ds = ensemble.Dataset.sel(fhour=[np.timedelta64(timedelta(hours=f)) for f in forecast_hours])
     for stid, df in meso.Data.items():
         if stid not in stations:
             continue
@@ -95,8 +98,8 @@ def ae_meso(ensemble, meso, variables='all', stations='all', verbose=True):
     return ds
 
 
-def fss_radar(ensemble, radar, threshold, xlim, ylim, do_pmm=True, fraction_required=0.01, padding=1.,
-              interp_method='cubic', variable='REFD1', verbose=False, **fss_kwargs):
+def fss_radar_interpolate(ensemble, radar, threshold, xlim, ylim, do_pmm=True, fraction_required=0.01, padding=1.,
+                          interp_method='cubic', variable='REFD1', verbose=False, **fss_kwargs):
     """
     Return the fractions skill score of radar predictions from an ensemble compared to the radar data in an IEMRadar
     object. Returns an xarray Dataset with init_dates, times, and members as dimensions. If do_pmm is True, then also
@@ -151,14 +154,13 @@ def fss_radar(ensemble, radar, threshold, xlim, ylim, do_pmm=True, fraction_requ
     radar_cache = {}
     for d in range(len(init_dates)):
         init_date = init_dates[d]
-        for v in range(len(forecast_hours)):
-            verif_hour = forecast_hours[v]
+        for v, verif_hour in enumerate(forecast_hours):
             verif_datetime = init_date + timedelta(hours=verif_hour)
             if verbose:
                 print('\nfss_radar: init_date %s; forecast hour %d' % (init_date, verif_hour))
 
             # Get forecast hour index
-            ensemble_fhour_index = list(ensemble.Dataset.variables['fhour'].values).index(v)
+            ens_fhour_index = list(ensemble.Dataset.fhour.values).index(np.timedelta64(timedelta(hours=verif_hour)))
 
             # First check if we have cached interpolated radar. No need to do it again if we've gotten it for the
             # previous init_date. If the forecast hour is less than 24, we know we won't need the data again, so we
@@ -205,7 +207,7 @@ def fss_radar(ensemble, radar, threshold, xlim, ylim, do_pmm=True, fraction_requ
             # Get the ensemble data
             if verbose:
                 print('fss_radar: retrieving ensemble reflectivity values')
-            ensemble_array = ensemble.Dataset.variables[variable][d, :, ensemble_fhour_index, y1:y2, x1:x2].values
+            ensemble_array = ensemble.Dataset.variables[variable][d, :, ens_fhour_index, y1:y2, x1:x2].values
 
             # Print a diagnostic statement
             if verbose:
@@ -215,7 +217,7 @@ def fss_radar(ensemble, radar, threshold, xlim, ylim, do_pmm=True, fraction_requ
             # Calculate FSS
             if verbose:
                 print('fss_radar: calculating FSS')
-            if np.nanmax(radar_interpolated) < threshold:  # should not happend with fraction exceeding check
+            if np.nanmax(radar_interpolated) < threshold:  # should not happen with fraction exceeding check
                 radar_cache[verif_datetime] = None
                 continue
             if do_pmm:
@@ -226,17 +228,141 @@ def fss_radar(ensemble, radar, threshold, xlim, ylim, do_pmm=True, fraction_requ
 
     # Create a dataset to return
     ds = xr.Dataset({
-        'FSS': (['init', 'forecast_hour', 'member'], fss_array, {
+        'FSS': (['time', 'forecast_hour', 'member'], fss_array, {
             'long_name': 'Fractions skill scores of individual ensemble members'
         }),
-        'FSS_mean': (['init', 'forecast_hour'], fss_mean_array, {
+        'FSS_mean': (['time', 'forecast_hour'], fss_mean_array, {
             'long_name': 'Fractions skill score of the ensemble probability-matched mean'
         }),
-        'fraction': (['init', 'forecast_hour'], fraction_points_exceeding, {
+        'fraction': (['time', 'forecast_hour'], fraction_points_exceeding, {
             'long_name': 'Fraction of points exceeding threshold radar value'
         })
     }, coords={
-        'init': init_dates,
+        'time': init_dates,
+        'forecast_hour': forecast_hours,
+        'member': members
+    }, attrs={
+        'description': 'Fractions skill score for the NCAR ensemble 1-km base reflectivity',
+        'units': 'dBZ',
+        'fss_threshold': threshold,
+        'fraction_points_required': fraction_required,
+        'bbox': '%s,%s,%s,%s' % (xlim[0], ylim[0], xlim[1], ylim[1])
+    })
+
+    return ds
+
+
+def fss_radar(ensemble, radar, threshold, xlim, ylim, do_pmm=True, fraction_required=0.01, variable='REFD1',
+              verbose=False, **fss_kwargs):
+    """
+    Return the fractions skill score of radar predictions from an ensemble compared to the radar data in an IEMRadar
+    object. Returns an xarray Dataset with init_dates, times, and members as dimensions. If do_pmm is True, then also
+    calculates the ensemble probability-matched mean and the FSS for the PMM. Requires xlim and ylim to subset the
+    domain because interpolation of dense fields uses significant memory.
+
+    :param ensemble: NCARArray or GR2Array object with loaded data
+    :param radar: xarray Dataset of interpolated radar data; lat/lon dims must match ensemble selection
+    :param threshold: float: dBZ threshold for the FSS calculation
+    :param xlim: tuple or list: longitude limits
+    :param ylim: tuple or list: latitude limits
+    :param do_pmm: bool: if True, also calculates the FSS for the PMM of the ensemble; returned as a separate variable
+    :param fraction_required: float: fraction, from 0 to 1, of the number of points in the radar data exceeding the
+        FSS threshold required to do a calculation. Otherwise, the FSS is returned as NaN.
+    :param variable: str: name of the radar variable in the ensemble data (i.e., 'REFC', 'REFD1', etc.)
+    :param verbose: bool: if True, print progress statements
+    :param fss_kwargs: passed to the FSS method (e.g., neighborhood size)
+    :return:
+    """
+    if ensemble.Dataset is None:
+        raise ValueError('data must be loaded to ensemble object')
+    init_dates = ensemble.dataset_init_dates
+    forecast_hours = [f for f in ensemble.forecast_hour_coord]
+    members = [m for m in ensemble.member_coord]
+
+    fss_array = np.full((len(init_dates), len(forecast_hours), len(members)), np.nan)
+    fss_mean_array = np.full((len(init_dates), len(forecast_hours)), np.nan)
+    fraction_points_exceeding = np.full((len(init_dates), len(forecast_hours)), np.nan)
+
+    (y1, y2), (x1, x2) = ensemble.get_xy_bounds_from_latlon(ylim, xlim)
+    try:
+        if ensemble.inverse_lat:
+            y1, y2 = (y2, y1)
+    except AttributeError:
+        pass
+    lat_subset = ensemble.lat[y1:y2, x1:x2]
+    lon_subset = ensemble.lon[y1:y2, x1:x2]
+    num_points = lat_subset.shape[0] * lat_subset.shape[1]
+
+    # Check that the lat/lon match the radar lat/lon
+    if lat_subset.shape != radar.latitude.shape or lon_subset.shape != radar.longitude.shape:
+        raise ValueError("ensemble latitude/longitude subset must match interpolated radar dimensions")
+    if (np.nanmax(lat_subset - radar.latitude.values) > 0.01 or
+            np.nanmax(lon_subset - radar.longitude.values) > 0.01):
+        raise ValueError("ensemble lat/lon values must match interpolated radar lat/lon values")
+
+    for d in range(len(init_dates)):
+        init_date = init_dates[d]
+        for v, verif_hour in enumerate(forecast_hours):
+            verif_datetime = init_date + timedelta(hours=verif_hour)
+            if verbose:
+                print('\nfss_radar: init_date %s; forecast hour %d' % (init_date, verif_hour))
+
+            # Get forecast hour index
+            ens_fhour_index = list(ensemble.Dataset.fhour.values).index(np.timedelta64(timedelta(hours=verif_hour)))
+
+            # Get the radar values
+            try:
+                radar_time_index = list(radar.time).index(np.datetime64(verif_datetime))
+            except (KeyError, IndexError, ValueError):
+                print('fss_radar: warning: no radar found for %s; omitting calculation' % verif_datetime)
+                continue
+            if verbose:
+                print('fss_radar: retrieving radar values')
+            radar_array = radar.variables['composite_n0q'][radar_time_index].values
+            # Set the missing values (fillValues) to -30
+            radar_array[np.isnan(radar_array)] = -30.
+            # If we don't meet the criterion for areal coverage, pass
+            fraction_points_exceeding[d, v] = np.count_nonzero(radar_array > threshold) / num_points
+            if fraction_points_exceeding[d, v] < fraction_required:
+                if verbose:
+                    print('fss_radar: omitting FSS calculation; fractional coverage exceeding %0.0f dBZ (%0.4f) '
+                          'less than specified' % (threshold, fraction_points_exceeding[d, v]))
+                continue
+
+            # Get the ensemble data
+            if verbose:
+                print('fss_radar: retrieving ensemble reflectivity values')
+            ensemble_array = ensemble.Dataset.variables[variable][d, :, ens_fhour_index, y1:y2, x1:x2].values
+
+            # Print a diagnostic statement
+            if verbose:
+                print('fss_radar: max interpolated radar: %0.1f; max ensemble radar: %0.1f' %
+                      (np.nanmax(radar_array), np.nanmax(ensemble_array)))
+
+            # Calculate FSS
+            if verbose:
+                print('fss_radar: calculating FSS')
+            if np.nanmax(radar_array) < threshold:  # should not happen with fraction exceeding check
+                continue
+            if do_pmm:
+                ensemble_mean = probability_matched_mean(np.squeeze(ensemble_array), axis=0)
+                fss_mean_array[d, v] = fss(ensemble_mean, radar_array, threshold, **fss_kwargs)
+            fss_array[d, v, :] = fss(ensemble_array, np.stack((radar_array,) * 10, axis=0),
+                                     threshold, **fss_kwargs)
+
+    # Create a dataset to return
+    ds = xr.Dataset({
+        'FSS': (['time', 'forecast_hour', 'member'], fss_array, {
+            'long_name': 'Fractions skill scores of individual ensemble members'
+        }),
+        'FSS_mean': (['time', 'forecast_hour'], fss_mean_array, {
+            'long_name': 'Fractions skill score of the ensemble probability-matched mean'
+        }),
+        'fraction': (['time', 'forecast_hour'], fraction_points_exceeding, {
+            'long_name': 'Fraction of points exceeding threshold radar value'
+        })
+    }, coords={
+        'time': init_dates,
         'forecast_hour': forecast_hours,
         'member': members
     }, attrs={

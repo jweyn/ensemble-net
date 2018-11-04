@@ -275,12 +275,28 @@ class DataGenerator(Sequence):
     of the EnsembleSelector to do scaling and imputing of data.
     """
 
-    def __init__(self, selector, ds, batch_size=32, convolved=False, shuffle=False, model_fields_only=False):
+    def __init__(self, selector, ds, batch_size=32, convolved=False, shuffle=False, missing_threshold=None,
+                 model_fields_only=False):
+        """
+        Initialize a DataGenerator.
+
+        :param selector: ensemble_net.ensemble_selection.EnsembleSelector model instance
+        :param ds: xarray Dataset: predictor dataset
+        :param batch_size: int: number of samples (days) to take at a time from the dataset
+        :param convolved: bool: True if convolution was applied to create predictors
+        :param shuffle: bool: if True, randomly select batches
+        :param missing_threshold: float 0-1: if not None, then removes any samples with a fraction of NaN
+            larger than this
+        :param model_fields_only: bool: if True, use only model fields as input (no observations)
+        """
         self.selector = selector
         self.ds = ds
         self.batch_size = batch_size
         self.convolved = convolved
         self.shuffle = shuffle
+        if missing_threshold is not None and not (0 <= missing_threshold <= 1):
+            raise ValueError("'threshold' must be between 0 and 1")
+        self.missing_threshold = missing_threshold
         self.model_fields_only = model_fields_only
         self.impute_missing = self.selector.impute
         self.indices = []
@@ -326,7 +342,10 @@ class DataGenerator(Sequence):
 
         # Remove samples with NaN
         if self.impute_missing:
-            p, t = combined_predictors, ae_targets
+            if self.missing_threshold is not None:
+                p, t = delete_nan_samples(combined_predictors, ae_targets, threshold=self.missing_threshold)
+            else:
+                p, t = combined_predictors, ae_targets
             if scale_and_impute:
                 p, t = self.selector.imputer_transform(p, t)
                 p, t = self.selector.scaler_transform(p, t)

@@ -425,6 +425,23 @@ def predictors_from_ae_meso(ae_ds, ensemble, xlim, ylim, variables=(), forecast_
         return predictors
 
 
+def predictors_from_fss(fss, forecast_hours=(0, 12, 24), pickle_file=None, verbose=True):
+    """
+    Compiles predictors from the FSS Dataset created by ensemble_net.verify.fss_radar(). Convolution is NOT supported
+    for FSS predictors.
+
+    :param fss: xarray Dataset
+    :param forecast_hours: iter: list of forecast hours at which to retrieve errors
+    :param pickle_file: str: if given, file to write pickled predictor array
+    :param verbose: bool: print progress statements
+    :return: ndarray: array of predictors
+    """
+    if verbose:
+        print('predictors_from_fss: loading data')
+    fss.load()
+    return fss['FSS'].values.transpose((0, 2, 1))
+
+
 def convert_ensemble_predictors_to_samples(predictors, convolved=False, split_members=False):
     """
     Convert an array from predictors_from_ensemble into a samples-by-features array.
@@ -516,6 +533,29 @@ def convert_ae_meso_predictors_to_samples(predictors, convolved=False, agg=None,
                 predictors = _conv_agg(predictors, agg, axis=2)
                 input_shape = input_shape[1:]
             predictors = predictors.reshape((num_samples,) + (num_features,))
+
+    return predictors, input_shape
+
+
+def convert_fss_predictors_to_samples(predictors, split_members=False):
+    """
+    Convert an array from predictors_from_fss into a samples-by-features array. Does not support convolution.
+
+    :param predictors: ndarray: array of predictors
+    :param split_members: bool: if True, converts the members dimension to another image "channel", like variables
+    :return: ndarray: array of reshaped predictors; tuple: shape of feature input, for future reshaping
+    """
+    shape = predictors.shape
+    if split_members:
+        input_shape = (shape[1],)
+        num_samples = shape[0]
+        num_features = shape[1]*shape[2]
+        predictors = predictors.reshape((num_samples,) + (num_features,))
+    else:
+        input_shape = ()
+        num_samples = shape[0]*shape[1]
+        num_features = shape[2]
+        predictors = predictors.reshape((num_samples,) + (num_features,))
 
     return predictors, input_shape
 

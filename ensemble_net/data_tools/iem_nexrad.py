@@ -12,12 +12,14 @@ data.
 """
 
 import os
+import time
 import numpy as np
 import xarray as xr
 import netCDF4 as nc
 from requests import session
 from datetime import datetime
 from scipy.interpolate import griddata
+from interpolation.splines import LinearSpline, CubicSpline
 
 
 # ==================================================================================================================== #
@@ -316,14 +318,17 @@ class IEMRadar(object):
             nc_fid.variables['composite_%s' % self._composite_type][time_index, :, :] = \
                 np.array(read_nc_fid.variables['composite_%s' % self._composite_type][:ny, :nx], dtype=np.float32)
 
-    def open(self, **dataset_kwargs):
+    def open(self, is_multiple_files=False, **dataset_kwargs):
         """
         Open an xarray Dataset for the initialization dates in self.dataset_init_dates. Once opened, this
         Dataset is accessible by self.Dataset.
 
-        :param dataset_kwargs: kwargs passed to xarray.open_mfdataset()
+        :param is_multiple_files: bool: if True, use open_mfdataset()
+        :param dataset_kwargs: kwargs passed to xarray open method
         :return:
         """
+        if is_multiple_files:
+            self.Dataset = xr.open_mfdataset(self.file_name, **dataset_kwargs)
         self.Dataset = xr.open_dataset(self.file_name, **dataset_kwargs)
 
     def close(self):
@@ -335,8 +340,8 @@ class IEMRadar(object):
         if self.Dataset is not None:
             self.Dataset.close()
 
-    def interpolate(self, lat, lon, times=None, padding=1., method='nearest', do_pmm=False, output_file=None,
-                    verbose=False):
+    def interpolate(self, lat, lon, times=None, padding=1., method='linear', engine='interp', do_pmm=False,
+                    output_file=None, verbose=False):
         """
 
         :param lat: 2-d array: latitude values to interpolate to
@@ -344,10 +349,12 @@ class IEMRadar(object):
         :param times: list: datetime times to process
         :param padding: float: in degrees, the number of degrees in each cardinal direction to add to the radar domain,
             used to compensate for the curvature of the ensemble projection
-        :param method: str: method of interpolation for scipy.interpolate.griddata ('linear', 'nearest', or 'cubic')
+        :param method: str: method of interpolation for engine ('linear', 'nearest', or 'cubic')
+        :param engine: str: 'scipy' or 'interp'. If using scipy, then the method can be any value; for interp, only
+            'linear' and 'cubic' are available
         :param do_pmm: bool: if True, uses a probability matching to retain extreme values
-        :param output_file: str or None: if None, does the operations in-memory and returns an xarray DataArray.
-            Otherwise, writes to the netCDF file and returns a netCDF file handle.
+        :param output_file: str or None: if None, does the operations in-memory and returns an xarray Dataset.
+            Otherwise, writes to the netCDF file and returns an opened xarray Dataset.
         :param verbose: bool: print progress statements
         :return: dask array: interpolated radar data
         """
@@ -360,12 +367,22 @@ class IEMRadar(object):
         times = self._time_coord
         if lat.shape != lon.shape:
             raise ValueError("shapes of 'lat' and 'lon' must match")
+        if engine not in ('interp', 'scipy'):
+            raise ValueError("'engine' must be 'interp' or 'scipy'")
+        if method not in ('linear', 'cubic', 'nearest'):
+            raise ValueError("'method' must be 'linear', 'cubic', or 'nearest'")
+        if method == 'nearest' and engine == 'interp':
+            print("interpolate warning: 'nearest' method unavailable for 'interp' engine; using 'linear'")
+            method = 'linear'
 
         # Get the radar array bounds
         y1r, x1r = self.closest_lat_lon(np.min(lat) - padding, np.min(lon) - padding)
         y2r, x2r = self.closest_lat_lon(np.max(lat) + padding, np.max(lon) + padding)
         lon_subset_r, lat_subset_r = np.meshgrid(self.lon[x1r:x2r], self.lat[y1r:y2r])
         radar_ds = self.Dataset.isel(lat=slice(y1r, y2r), lon=slice(x1r, x2r))
+        if engine == 'interp':
+            lower_bound = (self.lat[y1r], self.lon[x1r])
+            upper_bound = (self.lat[y2r], self.lon[x2r])
 
         if output_file is not None:
             nc_fid = nc.Dataset(output_file, 'w', format='NETCDF4')
@@ -421,20 +438,32 @@ class IEMRadar(object):
                             })
             target = ds.variables['composite_%s' % self._composite_type]
 
-        for t, time in enumerate(times):
+        for t, time_val in enumerate(times):
             if verbose:
-                print('IEMRadar.interpolate: time %d of %d (%s)' % (t+1, len(times), time))
-            # radar_time_index = list(self.time).index(np.datetime64(self.times[t]))
+                print('IEMRadar.interpolate: time %d of %d (%s)' % (t+1, len(times), time_val))
+                load_start = time.time()
             radar_array = radar_ds.sel(time=np.datetime64(self.times[t])).variables['composite_n0q'].values
-            radar_interpolated = griddata(np.vstack((lat_subset_r.flatten(), lon_subset_r.flatten())).T,
-                                          radar_array.flatten(),
-                                          np.vstack((lat.flatten(), lon.flatten())).T,
-                                          method=method)
-            radar_interpolated = radar_interpolated.reshape(lat.shape)
-
+            radar_array[np.isnan(radar_array)] = -30.
+            if verbose:
+                calc_start = time.time()
+                print('  loaded data in %s seconds' % (calc_start - load_start))
+            if engine == 'scipy':
+                radar_interpolated = griddata(np.vstack((lat_subset_r.flatten(), lon_subset_r.flatten())).T,
+                                              radar_array.flatten(),
+                                              np.vstack((lat.flatten(), lon.flatten())).T,
+                                              method=method)
+                radar_interpolated = radar_interpolated.reshape(lat.shape)
+            elif engine == 'interp':
+                if method == 'linear':
+                    spline = LinearSpline(lower_bound, upper_bound, radar_array.shape, radar_array)
+                elif method == 'cubic':
+                    spline = CubicSpline(lower_bound, upper_bound, radar_array.shape, radar_array)
+                radar_interpolated = spline(np.vstack((lat.flatten(), lon.flatten())).T).reshape(lat.shape)
+            if verbose:
+                print('  interpolated in %s seconds' % (time.time() - calc_start))
             target[t, ...] = radar_interpolated
 
         if output_file is not None:
-            return nc_fid
-        else:
-            return ds
+            nc_fid.close()
+            ds = xr.open_dataset(output_file)
+        return ds

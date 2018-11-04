@@ -30,7 +30,7 @@ def combine_ae_meso(*files, missing_tolerance=None, new_file_out=None):
             raise ValueError("'missing_tolerance' must be a float between 0 and 1")
         for station in stations:
             if np.sum(np.isnan(ds[station].values)) / ds[station].size > missing_tolerance:
-                ds.drop(station)
+                ds = ds.drop(station)
 
     if new_file_out is not None:
         ds.to_netcdf(new_file_out)

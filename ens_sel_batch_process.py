@@ -25,7 +25,7 @@ warnings.filterwarnings("ignore")
 
 
 # Ensemble data parameters
-start_init_date = datetime(2016, 4, 1)
+start_init_date = datetime(2015, 4, 21)
 end_init_date = datetime(2017, 3, 31)
 forecast_hours = [0, 12, 24]
 members = list(range(1, 11))
@@ -59,8 +59,8 @@ load_existing_data = True
 root_data_dir = '/home/disk/wave/jweyn/Data/ensemble-net/'
 meso_file = '%s/mesowest_201604-201703.pkl' % root_data_dir
 copy_stations_file = None  # '%s/mesowest_201504-201603.pkl' % root_data_dir
-ae_meso_file = '%s/meso_error_201604-201703.nc' % root_data_dir
-predictor_file = '%s/predictors_201604-201703_28N40N100W78W_x4_no_c.nc' % root_data_dir
+ae_meso_file = '%s/meso_error_201504-201703.nc' % root_data_dir
+predictor_file = '%s/predictors_201504-201703_28N40N100W78W_x4_no_c.nc' % root_data_dir
 
 
 # Generate monthly batches of dates
