@@ -59,8 +59,8 @@ n0r_dims = (2600, 6000)
 n0q_dims = (5200, 12000)
 n0q_new_dims = (5400, 12200)
 
-# netCDF fill value
-fill_value = np.array(nc.default_fillvals['f4']).astype(np.float32)
+# netCDF fill value: match the source files
+fill_value = np.array([1.e20]).astype(np.float32)
 
 
 # ==================================================================================================================== #
@@ -268,7 +268,7 @@ class IEMRadar(object):
         nc_fid.createDimension('lon', nx)
 
         # Create unchanging time variable
-        nc_var = nc_fid.createVariable('time', np.int64, 'time', zlib=True)
+        nc_var = nc_fid.createVariable('time', np.float32, 'time')
         nc_var.setncatts({
             'long_name': 'Time',
             'units': 'seconds since 1970-01-01 00:00'
@@ -276,13 +276,13 @@ class IEMRadar(object):
         nc_fid.variables['time'][:] = self._time_coord
 
         # Create the 1-D (!) latitude and longitude variables
-        nc_var = nc_fid.createVariable('lat', np.float32, 'lat', zlib=True)
+        nc_var = nc_fid.createVariable('lat', np.float32, 'lat')
         nc_var.setncatts({
             'long_name': 'Latitude',
             'units': 'degrees_north',
             '_FillValue': fill_value
         })
-        nc_var = nc_fid.createVariable('lon', np.float32, 'lon', zlib=True)
+        nc_var = nc_fid.createVariable('lon', np.float32, 'lon')
         nc_var.setncatts({
             'long_name': 'Longitude',
             'units': 'degrees_east',
@@ -318,18 +318,21 @@ class IEMRadar(object):
             nc_fid.variables['composite_%s' % self._composite_type][time_index, :, :] = \
                 np.array(read_nc_fid.variables['composite_%s' % self._composite_type][:ny, :nx], dtype=np.float32)
 
-    def open(self, is_multiple_files=False, **dataset_kwargs):
+        nc_fid.close()
+
+    def open(self, **dataset_kwargs):
         """
         Open an xarray Dataset for the initialization dates in self.dataset_init_dates. Once opened, this
-        Dataset is accessible by self.Dataset.
+        Dataset is accessible by self.Dataset. If this instance's file_name attribute is a list or tuple, uses
+        xarray.open_mfdataset() instead.
 
-        :param is_multiple_files: bool: if True, use open_mfdataset()
         :param dataset_kwargs: kwargs passed to xarray open method
         :return:
         """
-        if is_multiple_files:
+        if isinstance(self.file_name, list) or isinstance(self.file_name, tuple):
             self.Dataset = xr.open_mfdataset(self.file_name, **dataset_kwargs)
-        self.Dataset = xr.open_dataset(self.file_name, **dataset_kwargs)
+        else:
+            self.Dataset = xr.open_dataset(self.file_name, **dataset_kwargs)
 
     def close(self):
         """
@@ -395,7 +398,7 @@ class IEMRadar(object):
             nc_fid.createDimension('west_east', lat.shape[1])
 
             # Create time variable
-            nc_var = nc_fid.createVariable('time', np.int64, 'time', zlib=True)
+            nc_var = nc_fid.createVariable('time', np.int64, 'time',)
             nc_var.setncatts({
                 'long_name': 'Time',
                 'units': 'seconds since 1970-01-01 00:00'
@@ -403,13 +406,13 @@ class IEMRadar(object):
             nc_fid.variables['time'][:] = self._time_coord
 
             # Create the latitude and longitude variables
-            nc_var = nc_fid.createVariable('latitude', np.float32, ('south_north', 'west_east'), zlib=True)
+            nc_var = nc_fid.createVariable('latitude', np.float32, ('south_north', 'west_east'))
             nc_var.setncatts({
                 'long_name': 'Latitude',
                 'units': 'degrees_north',
                 '_FillValue': fill_value
             })
-            nc_var = nc_fid.createVariable('longitude', np.float32, ('south_north', 'west_east'), zlib=True)
+            nc_var = nc_fid.createVariable('longitude', np.float32, ('south_north', 'west_east'))
             nc_var.setncatts({
                 'long_name': 'Longitude',
                 'units': 'degrees_east',
@@ -418,7 +421,7 @@ class IEMRadar(object):
 
             # Create the reflectivity variable
             nc_var = nc_fid.createVariable('composite_%s' % self._composite_type, np.float32,
-                                           ('time', 'lat', 'lon'), zlib=True)
+                                           ('time', 'south_north', 'west_east'), zlib=True)
             nc_var.setncatts({
                 'long_name': 'Base reflectivity',
                 'units': 'dBZ',

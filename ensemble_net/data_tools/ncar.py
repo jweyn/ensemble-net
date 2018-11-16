@@ -309,7 +309,7 @@ class NCARArray(object):
                         print('* Reason: "%s"' % str(e))
 
     def write(self, variables, init_dates='all', forecast_hours='all', members='all', use_ncar_netcdf=False,
-              write_into_existing=True, omit_existing=False, delete_raw_files=False, verbose=False):
+              skip_grib=False, write_into_existing=True, omit_existing=False, delete_raw_files=False, verbose=False):
         """
         Loads NCAR ensemble data for the given DateTime objects (list or tuple form) and members from the raw files and
         writes the data to reformatted netCDF files. Processed files are saved under self.root_directory/processed.
@@ -323,6 +323,7 @@ class NCARArray(object):
         :param members: int or list or tuple: IDs (1--10) of ensemble members to load; may be 'all', using the object's
             _member_coord attribute
         :param use_ncar_netcdf: bool: if True, reads data from netCDF files
+        :param skip_grib: bool: if True, only do the netCDF files (skip the grib files)
         :param write_into_existing: bool: if True, checks for existing files and appends if they exist. If False,
             overwrites any existing files.
         :param omit_existing: bool: if True, then if a processed file exists, skip it. Only useful if existing data
@@ -367,6 +368,8 @@ class NCARArray(object):
             time_index = forecast_hour_coord.index(forecast_hour)
             diags_file = nc.Dataset(file_name, 'r')
             for var, variable in diags_file.variables.items():
+                if var == 'REFD_MAX':
+                    var = 'REFC'
                 if var in variables:
                     if var not in nc_fid.variables.keys():
                         if verbose:
@@ -374,10 +377,10 @@ class NCARArray(object):
                         nc_var = nc_fid.createVariable(var, np.float32,
                                                        ('time', 'member', 'fhour', 'south_north', 'west_east'),
                                                        zlib=True)
-                        nc_var.settncattr('_FillValue', fill_value)
+                        nc_var.setncattr('_FillValue', fill_value)
                         try:
                             nc_var.setncatts({
-                                'long_name': getattr(variable, 'long_name'),
+                                'long_name': getattr(variable, 'description'),
                                 'units': getattr(variable, 'units')
                             })
                         except AttributeError:
@@ -573,7 +576,8 @@ class NCARArray(object):
                             init_coord = False
                         except (IOError, OSError):
                             print("* Warning: file %s not found for coordinates; trying the next one." % grib_file_name)
-                    read_write_grib(grib_file_name, grib2)
+                    if not skip_grib:
+                        read_write_grib(grib_file_name, grib2)
 
                     # Do the ncar netCDF part
                     if use_ncar_netcdf:

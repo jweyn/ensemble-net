@@ -142,7 +142,7 @@ def load_model(file_name):
 # ==================================================================================================================== #
 
 class AdamLearningRateTracker(Callback):
-    def on_batch_end(self, batch, logs=None, beta_1=0.9, beta_2=0.999,):
+    def on_epoch_end(self, epoch, logs=None, beta_1=0.9, beta_2=0.999,):
         optimizer = self.model.optimizer
         it = K.cast(optimizer.iterations, K.floatx())
         lr = K.cast(optimizer.lr, K.floatx())
@@ -154,7 +154,7 @@ class AdamLearningRateTracker(Callback):
 
 
 class SGDLearningRateTracker(Callback):
-    def on_batch_end(self, batch, logs=None):
+    def on_epoch_end(self, epoch, logs=None):
         optimizer = self.model.optimizer
         it = K.cast(optimizer.iterations, K.floatx())
         lr = K.cast(optimizer.lr, K.floatx())
