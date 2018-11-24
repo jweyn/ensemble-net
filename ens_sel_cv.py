@@ -181,7 +181,7 @@ fit_set = train_set[:scaler_fit_size]
 predictors, targets = generator.generate_data(fit_set, scale_and_impute=False)
 input_shape = predictors.shape[1:]
 num_outputs = targets.shape[1]
-conv_shape = generator.get_spatial_shape()
+conv_shape = generator.spatial_shape
 selector.init_fit(predictors, targets)
 predictors = None
 targets = None

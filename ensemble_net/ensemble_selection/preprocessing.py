@@ -616,12 +616,16 @@ def combine_predictors(*arrays, do_reshape=True):
     """
     new_arrays = []
     for array in arrays:
+        if array is None:
+            continue
         if len(array.shape) < 2:
             raise ValueError("input arrays must have at least 2 dimensions")
         if len(array.shape) > 2 and do_reshape:
             new_arrays.append(array.reshape((array.shape[0], -1)))
         else:
             new_arrays.append(array)
+    if not new_arrays:
+        return
     return np.concatenate(new_arrays, axis=-1)
 
 

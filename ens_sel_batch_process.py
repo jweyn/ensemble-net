@@ -32,7 +32,7 @@ members = list(range(1, 11))
 retrieve_forecast_variables = ('REFC', 'REFD_MAX', 'TMP2', 'DPT2', 'MSLP', 'UGRD', 'VGRD', 'CAPE', 'CIN', 'LFTX',
                                'UBSHR6', 'VBSHR6', 'HLCY1')
 # forecast_variables = ('TMP2', 'SPH2', 'MSLP', 'CAPE', 'Z500', 'T850', 'W850', 'PWAT')
-forecast_variables = ('TMP2', 'DPT2', 'MSLP', 'CAPE')
+forecast_variables = ('TMP2', 'DPT2', 'MSLP', 'REFC')
 verification_variables = ('TMP2', 'DPT2', 'MSLP')
 
 # Subset with grid parameters
@@ -60,7 +60,8 @@ root_data_dir = '/home/disk/wave/jweyn/Data/ensemble-net/'
 meso_file = '%s/mesowest_201604-201703.pkl' % root_data_dir
 copy_stations_file = None  # '%s/mesowest_201504-201603.pkl' % root_data_dir
 ae_meso_file = '%s/meso_error_201504-201703.nc' % root_data_dir
-predictor_file = '%s/predictors_201504-201703_28N40N100W78W_x4_no_c.nc' % root_data_dir
+predictor_file = '%s/predictors_201504-201703_28N40N100W78W_x4_no_c_fss.nc' % root_data_dir
+radar_fss_file = './extras/fss_2015-2017_28N40N100W78W.nc'
 
 
 # Generate monthly batches of dates
@@ -261,5 +262,29 @@ if not convolved:
         'units': 'degrees_east'
     })
     nc_var[:] = np.array([error_ds[s].attrs['LONGITUDE'] for s in stations])
+
+# Add the radar FSS scores
+if radar_fss_file is not None:
+    try:
+        fss_ds = xr.open_dataset(radar_fss_file)
+        nc_var = ncf.createVariable('FSS_PRED', np.float32, ('init_date', 'member', 'obs_time'),
+                                    fill_value=fill_value)
+        nc_var.setncatts({
+            'long_name': 'Predictors from radar FSS scores',
+            'fss_threshold': fss_ds.attrs['fss_threshold'],
+            'fraction_points_required': fss_ds.attrs['fraction_points_required']
+        })
+        nc_var[:] = fss_ds['FSS'].values[:, :raw_error_predictors.shape[-2], :].transpose((0, 2, 1))
+        fss_ds = xr.open_dataset(radar_fss_file)
+        nc_var = ncf.createVariable('FSS_TAR', np.float32, ('init_date', 'member'),
+                                    fill_value=fill_value)
+        nc_var.setncatts({
+            'long_name': 'Targets from radar FSS scores',
+            'fss_threshold': fss_ds.attrs['fss_threshold'],
+            'fraction_points_required': fss_ds.attrs['fraction_points_required']
+        })
+        nc_var[:] = fss_ds['FSS'].values[:, -1, :]
+    except BaseException as e:
+        print("Failed to add FSS scores to file. Reason: '%s'" % str(e))
 
 ncf.close()

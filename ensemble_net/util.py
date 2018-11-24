@@ -306,7 +306,7 @@ class PartialConv2D(Layer):
         self.kernel_size = conv_utils.normalize_tuple(kernel_size, self.rank, 'kernel_size')
         self.strides = conv_utils.normalize_tuple(strides, self.rank, 'strides')
         self.padding = conv_utils.normalize_padding(padding)
-        self.data_format = conv_utils.normalize_data_format(data_format)
+        self.data_format = K.normalize_data_format(data_format)
         self.dilation_rate = conv_utils.normalize_tuple(dilation_rate, self.rank, 'dilation_rate')
         self.activation = activations.get(activation)
         self.use_bias = use_bias
@@ -392,7 +392,7 @@ class PartialConv2D(Layer):
             outputs = self.activation(outputs)
             added_inputs = self.activation(added_inputs)
 
-        outputs = K.reshape(outputs, (K.shape(outputs)[0], -1))
+        outputs = K.reshape(outputs, (K.shape(outputs)[0], outputs.shape[1]*outputs.shape[2]*outputs.shape[3]))
         return K.concatenate((outputs, added_inputs), axis=-1)
 
     def compute_output_shape(self, input_shape):

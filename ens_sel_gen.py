@@ -27,29 +27,30 @@ from keras.callbacks import TerminateOnNaN
 #%% User parameters
 
 # Paths to important files
-root_data_dir = '%s/Data/ensemble-net' % os.environ['WORKDIR']
-predictor_file = '%s/predictors_201504-201703_28N40N100W78W_x4_no_c_ST.nc' % root_data_dir
-model_file = '%s/selector_ncar_2yr_MSLP' % root_data_dir
-result_file = '%s/result_ncar_2yr_MSLP.nc' % root_data_dir
+root_data_dir = '/home/disk/wave2/jweyn/Data/ensemble-net'
+predictor_file = '%s/predictors_201504-201703_28N40N100W78W_x4_no_c_fss.nc' % root_data_dir
+model_file = '%s/selector_ncar_2yr_fss_conv' % root_data_dir
+result_file = '%s/result_ncar_2yr_fss_conv.nc' % root_data_dir
 convolved = False
 
 # Copy file to scratch space
 copy_file_to_scratch = True
 
-# Optionally predict for only a subset of variables. Must use integer index as a list, or 'all'
-variables = [-1]
+# Tell the data generator which types of variables to use
+obs_errors = 'none'
+radar_fss = 'both'
 
-# Predict with model spatial fields only, and no observational errors as inputs
-model_fields_only = False
+# Optionally predict for only a subset of variables. Must use integer index as a list, or 'all'
+variables = 'all'
 
 # Neural network configuration and options
-batch_size = 6  # in model init dates
-scaler_fit_size = 100
-epochs = 3
+batch_size = 8  # in model init dates
+scaler_fit_size = 200
+epochs = 50
 impute_missing = True
 scale_targets = False
 val = 'random'
-val_size = 46
+val_size = 71
 # Use multiple GPUs
 n_gpu = 1
 
@@ -102,6 +103,16 @@ num_dates = predictor_ds.dims['init_date']
 num_members = predictor_ds.dims['member']
 num_stations = predictor_ds.dims['station']
 
+# Remove samples with missing FSS
+if radar_fss is not None:
+    fss_pred = predictor_ds['FSS_PRED'].values
+    missing_index, = np.where(np.sum(np.isnan(fss_pred.reshape(num_dates, -1)), axis=-1) > 0)
+    valid_index = list(range(num_dates))
+    for m in missing_index:
+        valid_index.remove(m)
+    num_dates = len(valid_index)
+    predictor_ds = predictor_ds.isel(init_date=valid_index)
+
 # Select the observation variables
 predictor_ds = predictor_ds.sel(**ens_sel)
 num_variables = predictor_ds.dims['obs_var']
@@ -134,11 +145,11 @@ selector = EnsembleSelector(impute_missing=impute_missing, scale_targets=scale_t
 
 # Make a DataGenerator for training
 generator = DataGenerator(selector, predictor_ds.isel(init_date=train_set), batch_size,
-                          convolved=convolved, model_fields_only=model_fields_only)
+                          convolved=convolved, obs_errors=obs_errors, radar_fss=radar_fss)
 
 # Make a DataGenerator for validation
 val_generator = DataGenerator(selector, predictor_ds.isel(init_date=val_set), batch_size,
-                              convolved=convolved, model_fields_only=model_fields_only)
+                              convolved=convolved, obs_errors=obs_errors, radar_fss=radar_fss)
 
 # Initialize the model's Imputer and Scaler with a larger set of data
 print('Fitting the EnsembleSelector Imputer and Scaler...')
@@ -146,7 +157,7 @@ fit_set = train_set[:scaler_fit_size]
 predictors, targets = generator.generate_data(fit_set, scale_and_impute=False)
 input_shape = predictors.shape[1:]
 num_outputs = targets.shape[1]
-conv_shape = generator.get_spatial_shape()
+conv_shape = generator.spatial_shape
 selector.init_fit(predictors, targets)
 predictors = None
 targets = None
@@ -159,22 +170,22 @@ p_val, t_val = val_generator.generate_data([])
 #%% Build and train the ensemble selection model
 
 layers = (
-    # ('PartialConv2D', (16,), {
-    #     'kernel_size': (3, 3),
-    #     'conv_size': conv_shape,
-    #     'conv_first': True,
-    #     'activation': 'relu',
-    #     'input_shape': input_shape
-    # }),
-    ('Dense', (1024,), {
+    ('PartialConv2D', (16, 5), {
+        'strides': 3,
+        'conv_size': conv_shape,
+        'conv_first': True,
         'activation': 'relu',
         'input_shape': input_shape
     }),
-    ('Dropout', (0.25,), {}),
-    ('Dense', (2*num_outputs,), {
-        'activation': 'relu'
+    ('Dense', (1024,), {
+        'activation': 'relu',
+        # 'input_shape': input_shape
     }),
     ('Dropout', (0.25,), {}),
+    # ('Dense', (2*num_outputs,), {
+    #     'activation': 'relu'
+    # }),
+    # ('Dropout', (0.25,), {}),
     ('Dense', (num_outputs,), {
         'activation': 'linear'
     })
@@ -225,54 +236,4 @@ result = xr.Dataset(
 
 result['prediction'] = (('time', 'member', 'station', 'variable'), predicted)
 result['target'] = (('time', 'member', 'station', 'variable'), t_test)
-
-# Clear the datasets to avoid HDF errors
-generator.ds = None
-val_generator.ds = None
-predictor_ds.close()
-predictor_ds = xr.open_dataset(predictor_file, mask_and_scale=True)
-
-# Run the selection on the validation set
-selector_scores = []
-selector_ranks = []
-verif_ranks = []
-verif_scores = []
-last_time_scores = []
-last_time_ranks = []
-for day in val_set:
-    day_as_list = [day]
-    if print_results:
-        print('\nDay %d:' % day)
-    new_ds = predictor_ds.isel(init_date=day_as_list, **ens_sel)
-    # TODO: fix shape error when model_fields_only == True
-    select_predictors, select_shape = preprocessing.format_select_predictors(new_ds.ENS_PRED.values,
-                                                                             new_ds.AE_PRED.values,
-                                                                             None, convolved=convolved,
-                                                                             num_members=num_members)
-    select_verif = verify.select_verification(new_ds.AE_TAR.values, select_shape,
-                                              convolved=convolved, agg=verify.stdmean)
-    select_verif_12 = verify.select_verification(new_ds.AE_PRED[:, :, :, [-1]].values, select_shape,
-                                                 convolved=convolved, agg=verify.stdmean)
-    selection = selector.select(select_predictors, select_shape, agg=verify.stdmean)
-    selector_scores.append(selection[:, 0])
-    selector_ranks.append(selection[:, 1])
-    verif_scores.append(select_verif[:, 0])
-    verif_ranks.append(select_verif[:, 1])
-    last_time_scores.append(select_verif_12[:, 0])
-    last_time_ranks.append(select_verif_12[:, 1])
-    ranks = np.vstack((selection[:, 1], select_verif[:, 1], select_verif_12[:, 1])).T
-    scores = np.vstack((selection[:, 0], select_verif[:, 0], select_verif_12[:, 0])).T
-    if print_results:
-        print(ranks)
-        print('Rank score of Selector: %f' % verify.rank_score(ranks[:, 0], ranks[:, 1]))
-        print('Rank score of last-time estimate: %f' % verify.rank_score(ranks[:, 2], ranks[:, 1]))
-        print('MSE of Selector score: %f' % np.mean((scores[:, 0] - scores[:, 1]) ** 2.))
-        print('MSE of last-time estimate: %f' % np.mean((scores[:, 2] - scores[:, 1]) ** 2.))
-
-result['selector_scores'] = (('time', 'member'), selector_scores)
-result['selector_ranks'] = (('time', 'member'), selector_ranks)
-result['verif_scores'] = (('time', 'member'), verif_scores)
-result['verif_ranks'] = (('time', 'member'), verif_ranks)
-result['last_time_scores'] = (('time', 'member'), last_time_scores)
-result['last_time_ranks'] = (('time', 'member'), last_time_ranks)
 result.to_netcdf(result_file)

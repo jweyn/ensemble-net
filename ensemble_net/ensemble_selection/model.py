@@ -19,7 +19,7 @@ import keras.models
 from keras.utils import multi_gpu_model, Sequence
 
 from .preprocessing import convert_ensemble_predictors_to_samples, convert_ae_meso_predictors_to_samples, \
-    combine_predictors
+    convert_fss_predictors_to_samples, combine_predictors
 from ..nowcast.preprocessing import delete_nan_samples
 from .. import util
 from .verify import rank
@@ -276,7 +276,7 @@ class DataGenerator(Sequence):
     """
 
     def __init__(self, selector, ds, batch_size=32, convolved=False, shuffle=False, missing_threshold=None,
-                 model_fields_only=False):
+                 obs_errors='both', radar_fss='none'):
         """
         Initialize a DataGenerator.
 
@@ -287,7 +287,16 @@ class DataGenerator(Sequence):
         :param shuffle: bool: if True, randomly select batches
         :param missing_threshold: float 0-1: if not None, then removes any samples with a fraction of NaN
             larger than this
-        :param model_fields_only: bool: if True, use only model fields as input (no observations)
+        :param obs_errors: str: how to use the obs errors in ds. Options are:
+            'p' or 'predictors': use to predict only
+            't' or 'targets': use as targets only
+            'both': use as both predictors and targets
+            'none': do not use
+        :param radar_fss: str: how to use FSS information in ds. Options are:
+            'p' or 'predictors': use to predict only
+            't' or 'targets': use as targets only
+            'both': use as both predictors and targets
+            'none': do not use
         """
         self.selector = selector
         self.ds = ds
@@ -297,7 +306,15 @@ class DataGenerator(Sequence):
         if missing_threshold is not None and not (0 <= missing_threshold <= 1):
             raise ValueError("'threshold' must be between 0 and 1")
         self.missing_threshold = missing_threshold
-        self.model_fields_only = model_fields_only
+        allowed_params = ['p', 'predictors', 't', 'targets', 'both', 'none']
+        if obs_errors not in allowed_params:
+            raise ValueError("value for 'obs_errors' not understood")
+        if radar_fss not in allowed_params:
+            raise ValueError("value for 'radar_fss' not understood")
+        if obs_errors not in ['t', 'targets', 'both'] and radar_fss not in ['t', 'targets', 'both']:
+            raise ValueError("one or both of 'obs_errors' and 'radar_fss' must be set as a target")
+        self.obs_errors = obs_errors
+        self.radar_fss = radar_fss
         self.impute_missing = self.selector.impute
         self.indices = []
 
@@ -309,7 +326,8 @@ class DataGenerator(Sequence):
 
         self.on_epoch_end()
 
-    def get_spatial_shape(self):
+    @property
+    def spatial_shape(self):
         """
         :return: the shape of the spatial component of ensemble predictors
         """
@@ -328,29 +346,42 @@ class DataGenerator(Sequence):
         else:
             ds = self.ds.isel(init_date=slice(None))
         ds.load()
+
+        # Load all requested predictors
         forecast_predictors, fpi = convert_ensemble_predictors_to_samples(ds['ENS_PRED'].values,
                                                                           convolved=self.convolved)
-        ae_targets, eti = convert_ae_meso_predictors_to_samples(np.expand_dims(ds['AE_TAR'].values, 3),
-                                                                convolved=self.convolved)
-        if self.model_fields_only:
-            combined_predictors = combine_predictors(forecast_predictors)
-        else:
+        if self.obs_errors in ['p', 'predictors', 'both']:
             ae_predictors, epi = convert_ae_meso_predictors_to_samples(ds['AE_PRED'].values, convolved=self.convolved)
-            combined_predictors = combine_predictors(forecast_predictors, ae_predictors)
+            p = combine_predictors(forecast_predictors, ae_predictors)
+        else:
+            p = combine_predictors(forecast_predictors)
+        if self.radar_fss in ['p', 'predictors', 'both']:
+            fss_predictors, fsi = convert_fss_predictors_to_samples(ds['FSS_PRED'].values)
+            p = combine_predictors(p, fss_predictors)
+
+        # Load all requested targets
+        if self.obs_errors in ['t', 'targets', 'both']:
+            ae_targets, eti = convert_ae_meso_predictors_to_samples(np.expand_dims(ds['AE_TAR'].values, 3),
+                                                                    convolved=self.convolved)
+            t = combine_predictors(ae_targets)
+        else:
+            t = None
+        if self.radar_fss in ['t', 'targets', 'both']:
+            fss_targets, fsi = convert_fss_predictors_to_samples(np.expand_dims(ds['FSS_TAR'].values, -1))
+            t = combine_predictors(t, fss_targets)
+
         ds.close()
         ds = None
 
         # Remove samples with NaN
         if self.impute_missing:
             if self.missing_threshold is not None:
-                p, t = delete_nan_samples(combined_predictors, ae_targets, threshold=self.missing_threshold)
-            else:
-                p, t = combined_predictors, ae_targets
+                p, t = delete_nan_samples(p, t, threshold=self.missing_threshold)
             if scale_and_impute:
                 p, t = self.selector.imputer_transform(p, t)
                 p, t = self.selector.scaler_transform(p, t)
         else:
-            p, t = delete_nan_samples(combined_predictors, ae_targets)
+            p, t = delete_nan_samples(p, t)
             if scale_and_impute:
                 p, t = self.selector.scaler_transform(p, t)
 

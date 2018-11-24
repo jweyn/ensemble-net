@@ -6,9 +6,7 @@
 
 import numpy as np
 import pickle
-import xarray as xr
-from ..data_tools import NCARArray
-from datetime import datetime, timedelta
+from datetime import timedelta
 import keras.backend as K
 
 
